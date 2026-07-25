@@ -12,12 +12,34 @@ The homelab is a real production environment, just for one person. Proxmox clust
 
 | Layer | What's there | Notes |
 | --- | --- | --- |
-| Compute | A 4-node Proxmox VE cluster | Heterogeneous mix — single-engineer homelab, parts opportunistically combined; 4 nodes give natural majority quorum |
+| Compute | A 4-node Proxmox VE cluster | Heterogeneous mix — single-engineer homelab, parts opportunistically combined; 4 nodes give natural majority quorum. Two of the oldest nodes are being consolidated onto a single newer 2U chassis |
 | Local LLM | Model library shared across cluster nodes and a dedicated Apple Silicon Mac | The GPU-bound former standalone LLM box has since joined the Proxmox cluster as its fourth node |
 | Storage | ZFS on Proxmox hosts; SAS backplane on one node for cluster bulk storage; NVMe for hot tiers | Mixed-tier by accident, kept by design — bulk on SAS, working sets on NVMe |
 | Networking | UniFi end-to-end: gateway, switches (with 10G SFP+ uplinks), APs | Single-pane management; 10G fiber backbone where it matters |
 | Power | Rack UPS for servers; separate UPS for the Home Assistant Pi | Active NUT monitoring planned once the LLM box is built |
-| Rack management | Raspberry Pi running Home Assistant; iDRAC vKVM jump VM in cluster for Java Web Start console access | Old BMC firmware needs a Java Web Start client; the jump VM keeps Java off the laptop |
+| Rack management | Raspberry Pi running Home Assistant; BMC jump VM in cluster for legacy console access | Only the oldest BMCs still need a Java Web Start client, and the jump VM keeps Java off the laptop. Newer BMC generations expose an HTML5 console and a Redfish API, so both remote console and headless OS install work straight from the browser and the command line |
+
+### Buying used enterprise gear
+
+Most of the rack is second-hand, so every arrival is audited against its
+listing before it is trusted. The BMC gives that away for free over Redfish
+and the vendor CLI, and the useful checks are rarely the advertised specs:
+
+- **Remaining write endurance on every SSD.** Used enterprise drives are sold
+  on the life left in them, and a listing almost never quotes it.
+- **Repeat counts in the system event log**, not just whether an error is
+  present. A recurring fault over months is a different machine from one that
+  logged something once.
+- **The real-time clock.** A BMC reporting a date near the epoch means a dead
+  CMOS battery, whatever the seller claimed about replacing it.
+- **Line input per power supply.** A `Critical` health rollup is very often
+  one uncorded supply rather than a hardware fault.
+- **Prior-owner remnants.** Hostnames and retained logs survive a drive-level
+  secure erase, so their presence shows the erase was narrower than advertised.
+
+Findings become tickets and follow-up tasks rather than remembered caveats,
+and the recorded inventory always reflects what the hardware reported — never
+what the listing claimed.
 
 ## Network topology
 
