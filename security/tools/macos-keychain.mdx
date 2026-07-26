@@ -72,7 +72,7 @@ Point at the elevate-access-tier keychain instead for human-only entries. The `-
 
 ## Best practices
 
-- One account name for AI-readable entries: `ai-cli-coder`. The `-a` flag is the discriminator.
+- Pick one account name for AI-readable entries and use it consistently. The `-a` flag is the discriminator.
 - Never put a value in `automation` that should require human approval. The unlock posture is the whole point.
 - Cap the auto-lock timeout on `elevate-access` (~5 minutes idle) so an abandoned session re-locks.
 - Touch ID for sudo (`security.pam.enableSudoTouchIdAuth = true` in nix-darwin) ensures even the human path requires biometric confirmation.
