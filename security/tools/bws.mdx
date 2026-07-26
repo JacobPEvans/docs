@@ -29,7 +29,7 @@ If both Doppler and BWS would work for a given secret, prefer Doppler. BWS is th
     `bws_helper.py` loads `~/.config/bws/.env` — BWS secret IDs and keychain references only. No values here.
   </Step>
   <Step title="Fetch the BWS access token from the keychain">
-    `security find-generic-password` retrieves `BWS_ACCESS_TOKEN` from `automation.keychain-db`. The token never reaches disk.
+    `security find-generic-password` retrieves `BWS_ACCESS_TOKEN` from the automation-tier keychain. The token never reaches disk.
   </Step>
   <Step title="Call BWS">
     `bws secret get <id>` returns the value into helper memory.
@@ -46,7 +46,7 @@ Two non-secret pieces (config file + secret IDs) live on disk; one secret piece 
 ```bash
 # ~/.config/bws/.env  — committed to ~/.config dotfiles only with secret-ID placeholders
 BWS_KEYCHAIN_SERVICE=<keychain-service-name>
-BWS_KEYCHAIN_ACCOUNT=ai-cli-coder
+BWS_KEYCHAIN_ACCOUNT=<keychain-account-label>
 BWS_SECRET_CLAUDE_CODE_OAUTH_TOKEN=<bws-secret-uuid-or-name>
 ```
 
@@ -61,7 +61,7 @@ Three rules for the `.env`:
 [`bws_helper.py`](https://github.com/JacobPEvans/nix-ai/blob/main/modules/claude/bws_helper.py) does three things:
 
 1. `load_env()` — reads the `~/.config/bws/.env` for secret IDs and keychain refs.
-2. `get_bws_token()` — calls `security find-generic-password` (allowed read-only by Claude Code) to fetch the BWS access token from `automation.keychain-db`.
+2. `get_bws_token()` — calls `security find-generic-password` (allowed read-only by Claude Code) to fetch the BWS access token from the automation-tier keychain.
 3. `get_secret(name)` — calls `bws secret get` and returns the value to the caller.
 
 Every step keeps secrets in process memory, never disk. Callers should pipe the value directly into a child process's env, never echo it.
