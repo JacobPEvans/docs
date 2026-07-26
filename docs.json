@@ -295,6 +295,7 @@
               "security/overview",
               "security/comparison",
               "security/golden-laws",
+              "security/ssh-access",
               "security/how-it-fits-together",
               "security/local-ai-isolation",
               "security/scrubbed-values"
