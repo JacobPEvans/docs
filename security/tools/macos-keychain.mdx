@@ -31,8 +31,8 @@ The split is the entire access-control model: anything an AI can read non-intera
 
 | Database | Unlock posture | Holds | AI can read? |
 | --- | --- | --- | --- |
-| `automation.keychain-db` | Unlocked at login | `HF_TOKEN`, `CONTEXT7_API_KEY`, `BWS_ACCESS_TOKEN`, and similar service API keys | Yes |
-| `elevate-access.keychain-db` | Locked, GUI unlock prompt | Break-glass material such as the `OPENBAO_TOKEN` root credential | No — the prompt blocks any non-interactive read |
+| automation tier | Unlocked at login | Service API keys and similar login-convenience credentials | Yes |
+| elevate-access tier | Locked, GUI unlock prompt | Break-glass material such as a root/admin credential | No — the prompt blocks any non-interactive read |
 
 Machine secret-zero no longer lives on the keychain. The per-domain OpenBao
 AppRole that bootstraps T2 reaches an agent through the runtime secret injector's
@@ -45,30 +45,30 @@ The last positional argument is the keychain path. Omit it and `security` search
 
 ```bash
 # Fetch once into a variable; never inline the read into every command.
-HF_TOKEN=$(security find-generic-password \
-  -a ai-cli-coder \
-  -s HF_TOKEN \
+SOME_TOKEN=$(security find-generic-password \
+  -a <account-label> \
+  -s <service-name> \
   -w \
-  ~/Library/Keychains/automation.keychain-db)
+  ~/Library/Keychains/<automation-keychain>.keychain-db)
 
 # Use the variable.
-HF_TOKEN=$HF_TOKEN hf auth whoami
+SOME_TOKEN=$SOME_TOKEN <cli> auth whoami
 ```
 
-For human-only entries, swap the path to `~/Library/Keychains/elevate-access.keychain-db`. Each `security find-generic-password` call against `elevate-access` triggers an unlock prompt; inlining the read on every command would prompt every time. Fetch once, inject the variable across the session — and unset it when done.
+For human-only entries, point at the separate elevate-access-tier keychain instead. Each `security find-generic-password` call against a locked keychain triggers an unlock prompt; inlining the read on every command would prompt every time. Fetch once, inject the variable across the session — and unset it when done.
 
 ## Adding a new keychain entry
 
 ```bash
 security add-generic-password \
   -U \
-  -a ai-cli-coder \
-  -s SOME_SERVICE_API_KEY \
+  -a <account-label> \
+  -s <service-name> \
   -w '<token-value>' \
-  ~/Library/Keychains/automation.keychain-db
+  ~/Library/Keychains/<automation-keychain>.keychain-db
 ```
 
-Replace `automation.keychain-db` with `elevate-access.keychain-db` for human-only entries. The `-U` flag updates if the entry already exists.
+Point at the elevate-access-tier keychain instead for human-only entries. The `-U` flag updates if the entry already exists.
 
 ## Best practices
 

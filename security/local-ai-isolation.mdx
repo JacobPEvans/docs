@@ -66,8 +66,8 @@ Secrets that no engine mints still live in two separate macOS keychain databases
 
 | Database | Holds | AI subprocess can read? |
 | --- | --- | --- |
-| `automation.keychain-db` | Service API keys such as `HF_TOKEN` and `CONTEXT7_API_KEY` | Yes |
-| `elevate-access.keychain-db` | Human-only break-glass material | No — GUI unlock prompt blocks non-interactive reads |
+| automation tier | Service API keys and similar login-convenience credentials | Yes |
+| elevate-access tier | Human-only break-glass material | No — GUI unlock prompt blocks non-interactive reads |
 
 An AI subprocess cannot satisfy the unlock prompt, which is the whole point of the second database.
 
