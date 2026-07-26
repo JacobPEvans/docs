@@ -36,6 +36,48 @@ and the vendor CLI, and the useful checks are rarely the advertised specs:
   one uncorded supply rather than a hardware fault.
 - **Prior-owner remnants.** Hostnames and retained logs survive a drive-level
   secure erase, so their presence shows the erase was narrower than advertised.
+- **Firmware currency, before anything else.** An old BMC doesn't just lack
+  niceties — it can drop entire management API surfaces: no memory or storage
+  inventory, no virtual media, no remote power control. Treat a firmware
+  update as required onboarding, not optional hygiene.
+- **The chassis's CPU thermal ceiling, not the socket's.** Entry-tier 2U
+  chassis often share a cooling design with smaller siblings and cap TDP well
+  below what the socket supports. A bigger heatsink doesn't raise that
+  ceiling — it only changes which drive-count and ambient-temperature
+  combinations are certified. Check the ceiling, and whether a newer CPU
+  generation needs a BIOS update first, before buying an upgrade chip.
+- **Warranty matters most on drives and power supplies, least on CPUs.**
+  Server CPUs rarely fail once burned in, and datacenters retire
+  previous-generation chips in bulk — that's where the price-per-performance
+  is. Put the warranty budget toward drives and PSUs instead, and burn in
+  every drive before trusting it.
+
+Firmware age has a second, sharper edge: the upgrade path itself can be long
+and mandatory. One arrival needed six sequential firmware updates to reach
+current, not one, because the vendor gates later versions behind a minimum
+earlier version. Read the release notes for prerequisites before scheduling
+the maintenance window — a "quick firmware update" turned into six reboots.
+
+The most valuable lesson: don't trust a used server's reported hardware
+inventory until POST has completed cleanly at least once. One BMC reported
+drives — full model and serial numbers included — that had been physically
+removed. The stale data was identical across two independent management
+APIs and survived both a BMC reset and a full cold power cycle. The cause:
+hardware inventory is collected during POST, and POST never completed, so
+the BMC kept serving a snapshot over a year old — visible only in its own
+collection timestamp. Before trusting any drive or memory listing from a
+used machine's BMC, check that the inventory-collection timestamp is
+current. If it isn't, everything the BMC reports about installed hardware
+is potentially fiction.
+
+That POST failure had a mundane cause: a single failed drive made the RAID
+controller's UEFI driver report unhealthy, which halted POST at an
+interactive prompt. With no monitor attached, the machine just looked hung
+— and because POST never finished, the BMC never got a window to run its
+queued firmware jobs, so they silently stalled instead of failing loudly.
+The fix was diagnostic, not electrical: modern BMCs can export a screenshot
+of the console over the management API, which turned an unexplained hang
+into a one-line diagnosis — another capability the oldest firmware lacks.
 
 Findings become tickets and follow-up tasks rather than remembered caveats,
 and the recorded inventory always reflects what the hardware reported — never
