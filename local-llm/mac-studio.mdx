@@ -6,7 +6,7 @@ page_type: explanation
 
 > A stationary desktop-class Apple Silicon host serves the large-tier models to the entire LAN, allowing client laptops to delegate heavy or structured reasoning workloads without draining local battery or memory.
 
-The Mac Studio `jevans-ms` (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host. It runs a multi-model stack that holds two models resident in memory concurrently to eliminate the overhead of swapping multi-gigabyte weights. A swap-tier allows loading larger fallbacks on demand.
+The stationary Mac Studio (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host. It runs a multi-model stack that holds two models resident in memory concurrently to eliminate the overhead of swapping multi-gigabyte weights. A swap-tier allows loading larger fallbacks on demand.
 
 ## Model Registry & Verdicts
 
@@ -17,7 +17,7 @@ The homelab runs a curated set of local models on the Mac Studio. Through system
 | **`Qwen3.6-35B-A3B-OptiQ-4bit`** | ~20 GB (Resident) | Optimized-phase brain (`ai-default` 12:00 UTC) | **The agentic tool-calling brain.** Selected by the agentic tool-calling benchmark: 100% valid tool calls and a clean 20-round multi-turn track. **Runs with thinking ON** — required, since the same weights degrade to plain-text pseudo tool-calls around round 6 with thinking off. Serves a router-side `repetition_penalty` (1.05) to kill a 4-bit repetition-loop pathology under sustained agentic load. |
 | **`Qwen3-Next-80B-A3B-Thinking-4bit`** | ~45 GB (On-demand) | Large-phase brain (`ai-default` 00:00 UTC) | **The larger reasoning brain in the daily rotation.** Loaded on demand only while `ai-default` maps to it; a first-class router alias. Thinking-native. See [`docs/BRAIN_ROTATION.md`](https://github.com/dryvist/ansible-proxmox-apps/blob/main/docs/BRAIN_ROTATION.md). |
 | **`Qwen3-Coder-30B-A3B-4bit`** | 17.1 GB (Resident) | Resident Coding | **Best for boilerplate and Terraform/HCL generation.** Extremely strong at syntax, but carries a precision liability (e.g. minor query typos or dropping keys). Route templated codegen only. |
-| **`gpt-oss-120b-MXFP4-Q8`** | 63.3 GB (On-demand) | On-demand Reasoning | **Best for constrained prose and SPL query authoring.** Loaded on demand and idle-unloaded after 900s rather than held resident. Highly capable on complex reasoning, but weak at code review (confident false positives) and unfit as an agent brain (0% valid structured tool calls in the agentic benchmark). Requires high `max_tokens` for JSON. `reasoning_effort=low` by default. |
+| **`gpt-oss-120b-MXFP4-Q8`** | 63.3 GB (On-demand) | On-demand Reasoning | **Best for constrained prose and SPL query authoring.** Loaded on demand and idle-unloaded after 900s rather than held resident. Highly capable on complex reasoning, but weak at code review (confident false positives). **Held back from agent work by a serving-layer gap, not by the model:** it emits semantically correct calls in its own channel markup, the server ships no parser for that format, so `tool_calls` returns empty and the markup leaks into `content` (verified 2026-07-26/27). The missing parser is being written as a declarative patch with a per-model toggle; once it lands, this model's ~4.5x throughput lead makes it the leading brain candidate outright. See [Backends & tool calling](/local-llm/backends). Requires high `max_tokens` for JSON. `reasoning_effort=low` by default. |
 | **`Qwen3.6-35B-A3B-4bit`** | 20.4 GB (Swap tier) | Swap-tier structured fallback | **The uniform-4bit structured-output baseline.** Passes strict JSON port-allocation tests but was superseded as the agent default by the OptiQ build above (uniform 4-bit degrades multi-turn tool calling earlier). Runs with thinking off by default. |
 | **`Qwen3.6-27B-4bit`** | 16.1 GB | Retired (2026-07-07) | **Retired after evals.** Decoded at 23–27 tok/s (4× slower than the 35B MoE), produced low-effort code reviews, and filled no unique capability niche. Removed from the swap tier. |
 
@@ -32,6 +32,45 @@ These verdicts were established using a rigorous 5-task battery testing:
 ---
 
 ## Headline Performance & Tuning Outcomes
+
+This section has two tiers. The re-measured table directly below is verified.
+The tuning-outcome list after it is not, and is marked accordingly.
+
+### Re-measured in isolation
+
+Verified 2026-07-26/27. Both figures come from a dedicated worker whose loaded
+weights were confirmed from its running command line. The headline metric is
+**cumulative** — see
+[the metric definition](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only).
+
+| Model | Cumulative | Decode-only | Prefill | Time to first token |
+| --- | --- | --- | --- | --- |
+| `gpt-oss-120b-MXFP4-Q8` | **51–54 tok/s** | 40–43 tok/s | 559–627 tok/s | 0.23–0.26 s |
+| `Qwen3-Next-80B-A3B-Thinking-4bit` | **10–13 tok/s** | 9–11 tok/s | 97–152 tok/s | 0.58–0.91 s |
+
+About a 4.5x gap. The 80B's slowness is an implementation property of its
+hybrid-attention path, not a size property — the larger model is the faster one
+here. Storage and memory pressure were both ruled out.
+
+<Note>
+  **The "above 40 tok/s" bar is current operating guidance, not a permanent
+  gate.** It reflects what a single stationary host should serve interactively
+  *while single-stream stability is still being settled*. Concurrency rises once
+  concurrency-1 is solid, and a second backend is on the roadmap — both move the
+  bar. Do not cite it as a fixed requirement.
+</Note>
+
+### Earlier tuning outcomes
+
+<Warning>
+  **Every figure in this list is provisional until re-measured with
+  process-proven weights.** The swapping proxy was found serving a fallback
+  model's weights under other models' labels, which inflated one measurement by
+  7x. Any figure not taken from a worker whose command line was inspected is
+  under audit — see
+  [Verifying the instrument](/local-llm/verifying-the-instrument). These are
+  also decode-only rates, which is the wrong headline metric.
+</Warning>
 
 The serving stack is fully tuned and optimized in code (merged and active on the host), delivering significant speedups over the baseline stack:
 

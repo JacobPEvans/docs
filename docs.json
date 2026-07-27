@@ -279,6 +279,7 @@
               "local-llm/nix-serving-stack",
               "local-llm/models-and-quantization",
               "local-llm/backends",
+              "local-llm/verifying-the-instrument",
               "local-llm/distributed",
               "local-llm/homelab-gpu"
             ]
