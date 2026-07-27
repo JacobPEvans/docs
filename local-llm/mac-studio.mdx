@@ -33,13 +33,8 @@ These verdicts were established using a rigorous 5-task battery testing:
 
 ## Headline Performance & Tuning Outcomes
 
-<Warning>
-  **Numbers below are provisional until re-measured with process-proven
-  weights.** The swapping proxy was found serving a fallback model's weights
-  under other models' labels, which inflated one measurement by 7x. Any figure
-  not taken from a worker whose command line was inspected is under audit — see
-  [Verifying the instrument](/local-llm/verifying-the-instrument).
-</Warning>
+This section has two tiers. The re-measured table directly below is verified.
+The tuning-outcome list after it is not, and is marked accordingly.
 
 ### Re-measured in isolation
 
@@ -64,6 +59,18 @@ here. Storage and memory pressure were both ruled out.
   concurrency-1 is solid, and a second backend is on the roadmap — both move the
   bar. Do not cite it as a fixed requirement.
 </Note>
+
+### Earlier tuning outcomes
+
+<Warning>
+  **Every figure in this list is provisional until re-measured with
+  process-proven weights.** The swapping proxy was found serving a fallback
+  model's weights under other models' labels, which inflated one measurement by
+  7x. Any figure not taken from a worker whose command line was inspected is
+  under audit — see
+  [Verifying the instrument](/local-llm/verifying-the-instrument). These are
+  also decode-only rates, which is the wrong headline metric.
+</Warning>
 
 The serving stack is fully tuned and optimized in code (merged and active on the host), delivering significant speedups over the baseline stack:
 
