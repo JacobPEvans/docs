@@ -74,17 +74,21 @@ at boot and eliminate the 112s cold start (pending one host rebuild).
 
 <Warning>
   **Every figure above is provisional until re-measured with process-proven
-  weights.** The swapping proxy was caught serving a fallback model's weights
-  under other models' labels, inflating one measurement by 7x, and the
-  concurrency aggregate is not a general result — on a large MoE model, four
-  streams measured *worse* than one (verified 2026-07-26/27). Read
+  weights.** The swapping proxy was caught serving the resident model's weights
+  under every other model's label — single-model collapse grafts each disabled
+  model's *physical identifier* onto the surviving entry as an alias — which
+  inflated one measurement by 7x. The concurrency aggregate is not a general
+  result either: on a large MoE model, four streams measured *worse* than one
+  (verified 2026-07-26/27). Read
   [Verifying the instrument](/local-llm/verifying-the-instrument) before citing
   any number on this site.
 
-  They are also quoted on the wrong metric. The headline figure is now
-  **cumulative** tokens/second — prompt plus completion over total wall-clock —
-  because decode-only rates hide real prefill gains. See
-  [the metric definition](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only)
+  They are also quoted on the wrong metric, and without a regime. The headline
+  figure is **cumulative** tokens/second — prompt plus completion over total
+  wall-clock — because decode-only rates hide real prefill gains; but cumulative
+  is meaningless without its prompt size, so both must be published together.
+  See [the metric definition](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only),
+  [why the regime matters](/tools/mlx-benchmarks#cumulative-is-meaningless-without-its-regime),
   and the [re-measured figures](/local-llm/mac-studio#re-measured-in-isolation).
 </Warning>
 
