@@ -9,14 +9,27 @@ page_type: explanation
 
 ## How a server ends up serving the wrong weights
 
-An auto-discovery script generated one server entry per model by substituting a
-model id into a command template. The substitution targeted the substring
-`serve <model>`. The template said `--model <model>`. The substring was never
-there, so the replace was a silent no-op — and **every generated entry launched
-the default model's weights under a different label**. In one captured config,
-11 of 12 model ids pointed at the same default.
+A proxy config generator collapses a multi-model catalog down to **one resident
+model** to fit a memory budget. Every other entry is disabled — kept intact,
+each still carrying its own correct launch command, simply not served. Then the
+generator does one more thing: it grafts every disabled model's **physical
+identifier** onto the surviving entry as an **alias**, so that "any caller
+naming any known model still gets an answer."
 
-Nothing downstream caught it, because the two obvious checks are not checks.
+That is the defect. The surviving entry now answers to names that do not
+identify it. Ask for a 120B model, get the 30B resident — HTTP 200, and a
+response labelled with the 120B you asked for. In one captured config, 11 of 12
+model ids resolved to the same resident.
+
+The distinction the generator lost is between two kinds of name:
+
+| Kind of name | What it asserts | Repointing it is |
+| --- | --- | --- |
+| a **role alias** (`default`, `coding`, `fastest`) | intent — "something suitable" | correct, and the whole point |
+| a **physical model id** | identity — "these exact weights" | a silent lie |
+
+Treating them as interchangeable is what makes the failure invisible. Nothing
+downstream caught it, because the two obvious checks are not checks.
 
 ## Two things that look like verification and verify nothing
 
@@ -40,6 +53,13 @@ ps -p <pid> -o command=           # pid   -> the weights it was launched with
 If the command line does not name the model you think you are measuring, the
 number is void. Do this before the run, not after.
 
+Run it against the **worker**, never the proxy. A dedicated single-model worker
+resolves the id it was asked for and returns 404 on an id it does not hold — so
+once a worker's weights are proven by process inspection, "HTTP 200 plus a
+matching label" from *that worker* is trustworthy. Put a proxy in front of it
+and the same 200 and the same label prove nothing again. The guarantee belongs
+to the worker, not to the response shape.
+
 ## The error this hid: a 7x gap that inverted the conclusion
 
 Taken through the proxy, a large (80B-class) mixture-of-experts model measured
@@ -49,8 +69,8 @@ medians 11.05 and 8.96, replicated across two independent sequences, with
 prefill at 97–152 tok/s and time-to-first-token at 0.58–0.91 s
 (verified 2026-07-26/27).
 
-A 7x gap. About 72 tok/s is 30B-class speed, and the fallback default was a
-30B-class model. Storage and memory pressure were both ruled out. On the
+A 7x gap. About 72 tok/s is 30B-class speed, and the grafted alias pointed at a
+30B-class resident. Storage and memory pressure were both ruled out. On the
 [headline cumulative metric](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only)
 the corrected model runs 10–13 tok/s — the correction survives either metric,
 because the defect was never about which rate you report.
@@ -66,11 +86,17 @@ cannot prove which checkpoint was loaded is unverified — not a baseline.
 
 ## Two rules that fall out
 
-**A substitution that can silently match nothing must assert that it changed
-something.** A string replace that finds no match returns the input unchanged
-and reports success. Compare before and after, and fail loudly when they are
-equal. The same applies to a `sed`, a template render, or any patch step whose
-failure mode is "no-op".
+**Never let a name resolve to something it does not identify.** An alias is an
+assertion that two names mean the same thing. When a generator points a
+*physical identifier* at a different object so that "every request gets an
+answer," it has chosen a confident wrong answer over an honest error. Drop the
+alias, or return an explicit 404 — either beats silence. Convenience routing is
+for names that express intent, never for names that express identity.
+
+The corollary is a debugging one: when this happens, **nothing is corrupt**.
+The disabled entries were intact the whole time and would serve real weights the
+moment they were enabled. Only the names were wrong. Look at the routing table
+before you go looking for damage.
 
 **Mutation-test every new check.** A check nobody has watched fail is not a
 check. After you add a guard, deliberately reinstate the defect it guards

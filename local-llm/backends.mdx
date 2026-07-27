@@ -87,12 +87,26 @@ single action, not once per conversation, so it belongs in the tool-calling
 verdict rather than in the raw tokens-per-second column.
 
 A parser gap also cuts the other way: writing the missing parser can unlock a
-model that is already the fastest thing available and is only being dropped by
-the plumbing. Check whether the failure is the model or the server before you
-retire the model. That is what happened with the channel-markup case above — the
-model measured roughly **4.5x** faster than the incumbent on cumulative
-throughput, so the missing parser is being written as a declarative patch rather
-than the model being written off.
+model that the plumbing, not the model, was dropping. Check whether the failure
+is the model or the server before you retire the model. That is what happened
+with the channel-markup case above, and the parser was written as a declarative
+patch rather than the model being written off.
+
+<Warning>
+  **Do not justify a parser on a throughput claim you have not re-measured.**
+  The original case for that parser cited a ~4.5x cumulative throughput lead
+  over the incumbent. That figure was taken in a different regime and possibly
+  through a proxy that was serving the wrong weights, so it is
+  [not comparable](/tools/mlx-benchmarks#cumulative-is-meaningless-without-its-regime).
+  Re-measured in one stated regime, the **incumbent** leads on decode by roughly
+  2.6x — the opposite direction.
+
+  The parser is still correct and still worth having: the markup leakage is real
+  and independently measured on an isolated worker. It just needed a reason that
+  survived scrutiny, and "fixes a genuine plumbing defect" was always the
+  stronger one. A correct fix argued from a wrong number is one re-measurement
+  away from being reverted.
+</Warning>
 
 <Note>
   **Per-model configuration divergence is the intended end state, not a smell.**
