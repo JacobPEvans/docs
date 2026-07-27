@@ -57,6 +57,39 @@ flowchart LR
 | --- | --- |
 | [HF dataset](https://huggingface.co/datasets/JacobPEvans/mlx-benchmarks), [HF Space viewer](https://huggingface.co/spaces/JacobPEvans/mlx-benchmarks-viewer) | [`nix-ai`](/nix/nix-ai) (vllm-mlx, llama-swap), `lm-eval`, `vllm`, agent-framework SDKs |
 
+<Warning>
+  **A row is only as good as its weight provenance.** A serving proxy was found
+  launching a fallback model's weights under other models' labels, which put
+  rows in the dataset measuring a model that was never loaded — one of them off
+  by 7x (verified 2026-07-26/27). Prove the loaded checkpoint from the running
+  process before you publish, and treat any historical row that cannot prove it
+  as unverified rather than as a baseline. See
+  [Verifying the instrument](/local-llm/verifying-the-instrument).
+</Warning>
+
+## The headline metric is cumulative, not decode-only
+
+**Cumulative tokens/second = (prompt tokens + completion tokens) ÷ total
+wall-clock.** That is the headline figure; decode-only rate is a secondary
+diagnostic.
+
+Decode-only throughput hides prefill. A model that reads its prompt several
+times faster delivers a visibly faster answer, and a decode-only number reports
+none of that gain — so tuning against it tunes for something the user never
+experiences. Cumulative counts every token the request touched against the
+time the user actually waited.
+
+The two metrics can rank models differently, which is the point:
+
+| Model class | Cumulative | Decode-only | Prefill | Time to first token |
+| --- | --- | --- | --- | --- |
+| Large sparse MoE, fast prefill path | **51–54 tok/s** | 40–43 tok/s | 559–627 tok/s | 0.23–0.26 s |
+| Large hybrid-attention MoE, slow prefill path | **10–13 tok/s** | 9–11 tok/s | 97–152 tok/s | 0.58–0.91 s |
+
+Roughly a 4.5x spread on the correct metric — wider than decode-only alone
+implies, because the faster model wins at both stages and cumulative compounds
+them. Report both columns; lead with cumulative.
+
 <RepoFit>
 Anything that runs an LLM benchmark and wants the result comparable across tools, models, and dates goes through this envelope. Per-tool harness logic stays upstream; the publisher stays thin. No CI benchmarking — MLX needs Apple Silicon hardware, so runs are local; CI only validates the publisher against fixtures.
 </RepoFit>

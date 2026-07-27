@@ -71,11 +71,21 @@ flowchart TB
 ## The honest fit math
 
 "256 GB" is a ceiling, not a usable target. Sharding has per-node overhead, and
-the KV cache needs room too. A tensor-parallel split of a trillion-parameter
-4-bit model can need well over 128 GB *per node* — which won't fit on two 128 GB
-Macs at all. The realistic sweet spot is a **pipeline-parallel split of a model
-in the ~200–230 GB-weights range**, leaving each node under its 128 GB with cache
-headroom. Push toward a true 256 GB and you starve the cache and fall into swap.
+the KV cache needs room too.
+
+**The split you get is tensor-parallel.** Weights shard across both nodes and
+every layer's activations cross the link. That is the framework default and what
+almost every model architecture implements. Pipeline parallelism — whole layers
+per node, one activation hop per stage — is opt-in and implemented for only two
+architectures, so you cannot pick a model on the assumption you will get it
+(verified 2026-07-26/27).
+
+That decides the sizing. A tensor-parallel split divides the weights but
+multiplies the chatter, so the link ratio above is paid on every layer rather
+than once per stage. Target a model whose weights leave each node under its own
+128 GB with cache headroom — roughly the **~200–230 GB-weights range** on a
+128 GB pair. Push toward a notional 256 GB and you starve the cache and fall
+into swap.
 
 ## Capacity, not speed — and why overnight makes that fine
 
@@ -120,10 +130,55 @@ distributed-ML TCP rendezvous in a maddening way:
   it's Local Network privacy, not the firewall, the cable, or the framework.
 - **Fix:** grant the runtime under System Settings → Privacy & Security →
   **Local Network** (a recorded deny makes the binary appear in that list).
-  The grant pins to the binary's path, so upgrading the runtime silently
-  resets you to denied — re-check after version bumps. Loopback is exempt,
-  so tunnelling the rendezvous port over system `ssh -L` avoids needing the
-  grant at all.
+  Loopback is exempt, so tunnelling the rendezvous port over system `ssh -L`
+  avoids needing the grant at all. But the grant is keyed to the binary's
+  **code-signing identity** — which is why it keeps coming back. See below.
+
+### Code-signing identity decides which interpreter a scheduled job may use
+
+A binary built by a content-addressed package manager has a signing identity
+that *is* its content hash. Every dependency bump mints a binary the OS has
+never seen and silently voids every prior privacy grant. The symptom is a
+network failure indistinguishable from a pulled cable, and it recurs on a
+cadence nobody associates with an outage: whenever you update.
+
+So scheduled jobs deliberately launch through the **OS vendor's system
+interpreter**, whose signing identity is stable across your updates. That trade
+carries a hard cost — the vendor interpreter is old, a 3.x-era shell — and so a
+hard requirement: **every shipped script must parse under it.**
+
+Nothing enforced that, and two live violations were each the root cause of a
+long-standing failure (verified 2026-07-26/27):
+
+| Construct | What the old shell does | What it broke |
+| --- | --- | --- |
+| `case` inside `$( )` | ends the command substitution at the first `)` of a case *pattern* → syntax error, exit 0, raw script text on stdout | link and carrier detection returned garbage for weeks, so the cluster could never self-form |
+| `mapfile` (a shell-4 builtin) | "command not found" and an empty array | an orphan-process reaper concluded "nothing to clean up" on every start, and the orphan survived |
+
+Both failed **silently and successfully** — exit 0 with a wrong answer, which no
+caller checks for. A CI compatibility check now scans every shipped script for
+incompatible constructs, and it was mutation-tested: reinstating either bug
+fails the build. See
+[Verifying the instrument](/local-llm/verifying-the-instrument).
+
+### Some resource debt is boot-scoped — stop, don't retry
+
+The low-latency RDMA backend allocates protection domains. **Every failed
+initialization leaks more of them, and nothing in user space frees them while
+the host stays up.** A retry loop does not recover from this; it deepens the
+debt until nothing can start at all.
+
+The right response is to stop attempting and latch a halt marker scoped to this
+boot. The marker clears itself at the next boot — which is also what clears the
+leaked domains — and must never be cleared by hand to try again. Guards doing
+exactly that were validated live-fire: three failed rank starts leaked three
+domains, the halt latched, and the retry loop stopped (verified 2026-07-26/27).
+
+One detail from that drill is the wider lesson. The push-notification path was
+down at the time, so the halt was observable only by polling the state directory
+for the marker file. **Never make a halt condition observable only through an
+alerting channel that can itself be down.** Write a pollable on-host artifact
+and let the alert be the convenience, not the record.
 
 So the rule is: **prove an overnight job survives end-to-end before relying on
 it.** That proof is a measurement task, not an assumption.

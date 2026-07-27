@@ -1,0 +1,116 @@
+---
+title: "Verifying the instrument"
+description: "A model server can serve the wrong weights silently. The two checks that verify nothing, the one check that works, and the 7x measurement error that proves why it matters."
+page_type: explanation
+---
+
+> Before you record a benchmark number, prove which weights the process actually
+> loaded. Nothing in the response tells you.
+
+## How a server ends up serving the wrong weights
+
+An auto-discovery script generated one server entry per model by substituting a
+model id into a command template. The substitution targeted the substring
+`serve <model>`. The template said `--model <model>`. The substring was never
+there, so the replace was a silent no-op — and **every generated entry launched
+the default model's weights under a different label**. In one captured config,
+11 of 12 model ids pointed at the same default.
+
+Nothing downstream caught it, because the two obvious checks are not checks.
+
+## Two things that look like verification and verify nothing
+
+| What you check | What it actually reports |
+| --- | --- |
+| the `model` field in an OpenAI-style response | the value echoed back from your request — never read from the loaded checkpoint |
+| a `/v1/models` listing | the local model cache — not what any running process has loaded |
+
+Both hand back exactly what you hoped to see while the server runs something
+else. A label is not evidence.
+
+## The only check that works
+
+Walk from the listening port to the process command line. Two hops, no trust:
+
+```bash
+lsof -i :<port> -sTCP:LISTEN -t   # port  -> pid
+ps -p <pid> -o command=           # pid   -> the weights it was launched with
+```
+
+If the command line does not name the model you think you are measuring, the
+number is void. Do this before the run, not after.
+
+## The error this hid: a 7x gap that inverted the conclusion
+
+Taken through the proxy, a large (80B-class) mixture-of-experts model measured
+about **72 tok/s**. Re-measured on an isolated worker with the loaded weights
+proven by process inspection, the same model decoded at **9–11 tok/s** —
+medians 11.05 and 8.96, replicated across two independent sequences, with
+prefill at 97–152 tok/s and time-to-first-token at 0.58–0.91 s
+(verified 2026-07-26/27).
+
+A 7x gap. About 72 tok/s is 30B-class speed, and the fallback default was a
+30B-class model. Storage and memory pressure were both ruled out. On the
+[headline cumulative metric](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only)
+the corrected model runs 10–13 tok/s — the correction survives either metric,
+because the defect was never about which rate you report.
+
+The wrong number was never implausible, and that is the whole problem. **A
+plausible number from an unverified instrument is worse than no number**: no
+number prompts a measurement, while a wrong one ends the inquiry. "It looks
+about right" is exactly the reasoning that lets a fabricated measurement
+survive review.
+
+So every published result has to carry its weight provenance, and any row that
+cannot prove which checkpoint was loaded is unverified — not a baseline.
+
+## Two rules that fall out
+
+**A substitution that can silently match nothing must assert that it changed
+something.** A string replace that finds no match returns the input unchanged
+and reports success. Compare before and after, and fail loudly when they are
+equal. The same applies to a `sed`, a template render, or any patch step whose
+failure mode is "no-op".
+
+**Mutation-test every new check.** A check nobody has watched fail is not a
+check. After you add a guard, deliberately reinstate the defect it guards
+against and confirm the build breaks. The classic dud is `test.sh; touch $out`
+— the semicolon creates the output file even when the test fails, so the check
+can never fail. A compatibility check added for the
+[shell-parser bugs](/local-llm/distributed) was mutation-tested this way:
+putting either defect back fails the build.
+
+## The general shape of the problem
+
+The recurring failure is an instrument returning something indistinguishable
+from its opposite:
+
+| Instrument | Reads as | Actually means |
+| --- | --- | --- |
+| a `pgrep` no-match | the process is gone | your pattern is stale |
+| a proxy 502 or 503 | the backend is dead | the route is broken, or a dependency is |
+| `nc -z` with stdout redirected | reachable | can report success against an unreachable host |
+| an `https://` probe to a plain-HTTP backend | the host is down | TLS terminates in front of it |
+| a cluster membership list | the peers are alive | they are members |
+| a derived `1` | a hardcoded `1` | only the source line distinguishes them |
+
+Two habits cover most of it: **require three independent tools to agree before
+acting on a negative signal**, and prove a check *can* fail before you trust
+what it reports.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Benchmarking" icon="gauge-high" href="/tools/mlx-benchmarks">
+    The envelope and public dataset every published number lands in.
+  </Card>
+  <Card title="Backends & tool calling" icon="server" href="/local-llm/backends">
+    The other thing the serving layer can silently drop: a valid tool call.
+  </Card>
+  <Card title="Apple Silicon stack" icon="microchip" href="/local-llm/apple-silicon">
+    Concurrency measured per model, including where more load makes it worse.
+  </Card>
+  <Card title="Distributed & multi-Mac" icon="network-wired" href="/local-llm/distributed">
+    Silent-success shell bugs, and debt that a retry only deepens.
+  </Card>
+</CardGroup>

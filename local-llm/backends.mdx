@@ -61,12 +61,45 @@ doesn't parse. Two things cause most of it:
 - **Quantization drift under long loops.** A 4-bit model can format tool calls
   perfectly for the first several turns and then start emitting subtly invalid
   structure deep into an agentic trace. This is where auto-repair earns its keep.
+- **No parser at all for the model's format.** This is the one that gets
+  misdiagnosed as a bad model. A large open-weights model emitted its own
+  channel markup as raw text in the assistant `content` field, with
+  `finish_reason: stop` and **no `tool_calls` array** — the call was
+  semantically correct and the serving layer simply dropped it, because the
+  server ships no parser for that format (verified 2026-07-26/27). It leaks into
+  ordinary completions too. This is the same failure class as an agent runtime
+  leaking raw `<function=…>` markup into a summary: the reasoning was fine, the
+  plumbing lost it.
 
 <Note>
-  **Test the tool path before trusting any backend.** Send a real
-  tool-calling request to `/v1/chat/completions` and confirm a clean
-  `tool_calls` response — across several turns, not one. A backend that passes a
-  single-shot chat can still fail an agent loop.
+  **Per-model tool-call verification is a required gate, not a nice-to-have.**
+  Before a model is used for agent work, send a real tool-calling request to
+  `/v1/chat/completions` *through the deployed server* and confirm a populated
+  `tool_calls` array — across several turns, not one. A model that cannot emit a
+  structured tool call through this server is disqualified for agent work no
+  matter how good it is, because the agent never sees the call.
+</Note>
+
+Speed has a second dimension here. A model that *does* return valid structured
+calls can still burn several hundred reasoning tokens before the first one —
+measured at roughly 400 on one candidate. That is latency an agent pays on every
+single action, not once per conversation, so it belongs in the tool-calling
+verdict rather than in the raw tokens-per-second column.
+
+A parser gap also cuts the other way: writing the missing parser can unlock a
+model that is already the fastest thing available and is only being dropped by
+the plumbing. Check whether the failure is the model or the server before you
+retire the model. That is what happened with the channel-markup case above — the
+model measured roughly **4.5x** faster than the incumbent on cumulative
+throughput, so the missing parser is being written as a declarative patch rather
+than the model being written off.
+
+<Note>
+  **Per-model configuration divergence is the intended end state, not a smell.**
+  A tool-call parser, a reasoning parser, and a chat-template flag are properties
+  of the model's own output format. Forcing every model through one shared
+  setting is what produces silent leaks; a per-model toggle is the correct shape,
+  and a catalog that looks inconsistent across models is usually just accurate.
 </Note>
 
 ## Related
@@ -83,5 +116,8 @@ doesn't parse. Two things cause most of it:
   </Card>
   <Card title="Benchmarking" icon="gauge-high" href="/tools/mlx-benchmarks">
     Where backend claims get measured instead of believed.
+  </Card>
+  <Card title="Verifying the instrument" icon="magnifying-glass-chart" href="/local-llm/verifying-the-instrument">
+    Proving which weights a server actually loaded before you trust its numbers.
   </Card>
 </CardGroup>
