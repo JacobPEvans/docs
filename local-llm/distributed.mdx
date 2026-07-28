@@ -107,8 +107,77 @@ real risks for an overnight, unattended job:
   re-enabling.
 - Long many-iteration runs have hit transport-resource exhaustion and GPU
   command-buffer timeouts in the wild.
+- The RDMA backend has a **tiny, reboot-only** protection-domain budget, and
+  every failed attempt permanently spends one — see below.
 - macOS Local Network privacy can silently block the rendezvous entirely — see
   below.
+
+### The RDMA protection-domain budget is 11, and it never refills
+
+The RDMA backend allocates a kernel **protection domain** per rank. On Apple
+Silicon that resource is far scarcer than it looks, and it is consumed by
+*failure* as readily as by success.
+
+Measured with `ibv_devinfo -v`, identically on every RDMA device of both Macs in
+one deployment:
+
+```text
+max_pd: 11    max_qp: 11    max_cq: 11
+```
+
+Eleven. Not the ~60 concurrent sessions reported upstream in
+[ml-explore/mlx#3207](https://github.com/ml-explore/mlx/issues/3207) — that
+figure describes different hardware. **Run `ibv_devinfo -v` on your own machines
+before designing around any number here;** treat 11 as one deployment's measured
+fact, not an Apple Silicon constant.
+
+Three properties make that budget dangerous:
+
+- **Every `mx.distributed.init()` and teardown cycle leaks one** (mlx#3207). A
+  *failed* init leaks one too. A worker that dials a coordinator which isn't up
+  yet pays full price for learning nothing.
+- **Only a reboot returns one.** There is no release call and no cleanup path.
+  Running out shows up late and unhelpfully:
+  `[jaccl] Changing queue pair to RTR failed with errno 96`.
+- **You can't see how many are free.** `ibv_devinfo` reports the *maximum* a
+  device can allocate, not what is allocated now, and other processes may hold
+  some. The honest remaining budget is "unknown, and at most `11 - leaked`".
+
+#### Two mechanisms any such system needs
+
+**1. A reachability gate before you spend a domain.** Prove the peer is
+reachable over a path that costs nothing — a plain TCP connect to the rendezvous
+port, say — before you call `mx.distributed.init()`. Without that gate, "the
+peer isn't up yet" turns a condition that fixes itself in seconds into permanent
+resource loss. A precondition that fails should consume no budget at all.
+
+**2. A debt cap that reserves budget, not one that just avoids exhaustion.**
+Keep a boot-scoped ledger of domains known lost, and stop starting ranks at a cap
+well below the device budget.
+
+That second point is the non-obvious one, and it generalises. It is tempting to
+set the cap just under the limit — 10 of 11 — because you have not run out yet.
+That is wrong three times over:
+
+- **A working session needs domains too.** The cap does not measure how close to
+  empty you may get. It measures how much you may burn on failure and still
+  afford the run you actually want.
+- **Domains are not the only scarce pool.** `max_qp` and `max_cq` are 11 as
+  well, and a live rank allocates queue pairs and completion queues alongside
+  its protection domain. "Domains left" flatters "sessions left".
+- **You cannot see the true remainder.** Free domains are unobservable, so a cap
+  set against the measured maximum reasons from a number that was never a live
+  count.
+
+So hold back at least as many domains as you are willing to lose. In the
+deployment above the cap is **5** of 11: five failed attempts still leave six
+domains, which is a working session plus margin. A cap of 3 was over-cautious —
+it halted a self-resolving "peer not up yet" with eight domains untouched. A cap
+of 10 would clear the "not yet exhausted" bar and leave no room to succeed.
+
+Assert that invariant in code rather than remembering it. *Reserve at least the
+debt you tolerate* turns an over-confident cap into a build failure instead of a
+3 a.m. reboot.
 
 ### macOS Local Network privacy silently blocks the rendezvous
 
