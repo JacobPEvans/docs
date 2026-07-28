@@ -95,7 +95,16 @@ prefill at 97–152 tok/s and time-to-first-token at 0.58–0.91 s
 (verified 2026-07-26/27).
 
 A 7x gap. About 72 tok/s is 30B-class speed, and the grafted alias pointed at a
-30B-class resident. Storage and memory pressure were both ruled out. On the
+30B-class resident. Storage and memory pressure were both ruled out.
+
+The damage did not stay local. Because several grafted ids all resolved to the
+same resident, the numbers reached a **public dataset attributing one model's
+throughput to two others** — one wrong measurement became several wrong published
+rows, each carrying a model name that had never been loaded. A silent
+substitution does not produce one bad number; it produces as many as there are
+aliases pointing at the survivor.
+
+On the
 [headline cumulative metric](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only)
 the corrected model runs 10–13 tok/s — the correction survives either metric,
 because the defect was never about which rate you report.
