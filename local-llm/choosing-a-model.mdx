@@ -242,6 +242,13 @@ model families** — not that the models are incapable. A client that reads the 
 text stream and parses the tool syntax itself is unaffected. If your agent
 framework expects OpenAI-shaped `tool_calls`, that gap is the whole problem.
 
+The DeepSeek half of that may not last.
+[PR #1337](https://github.com/ml-explore/mlx-lm/pull/1337) adds a
+`deepseek_dsml` parser for DeepSeek-V4's native DSML tool-call format
+(+120/−0 across three files, opened 2026-05-31). It is **open and unmerged** as
+of 2026-07-27, so the table above is still the shipped reality — but check the
+directory listing yourself rather than trusting this paragraph's date.
+
 Open issues confirming the gpt-oss side, both still open on 2026-07-27:
 
 - [#613](https://github.com/ml-explore/mlx-lm/issues/613) — generation does not
@@ -357,27 +364,65 @@ attention:
 bytes per token = 2 × layers × kv_heads × head_dim × bytes_per_element
 ```
 
-The leading `2` is the key and the value cache. Worked example with Llama-3.3-70B
-(`num_hidden_layers` 80, `num_key_value_heads` 8, `head_dim` 128,
-`max_position_embeddings` 131072 — values identical across three independent
-mirrors of the config, since Meta's own repo is gated):
+The leading `2` counts the key cache and the value cache. **It is already in the
+formula — do not apply it a second time.** That is the single most common error
+here, and it silently doubles every figure downstream.
+
+Worked example with Llama-3.3-70B (`num_hidden_layers` 80,
+`num_key_value_heads` 8, `head_dim` 128, `max_position_embeddings` 131072 —
+values identical across three independent mirrors of the config, since Meta's own
+repo is gated). **At bf16, so `bytes_per_element` = 2:**
 
 ```text
-2 × 80 × 8 × 128 × 2 bytes = 327,680 bytes/token = 0.3125 MiB/token
-327,680 × 131,072          = 42,949,672,960 bytes = exactly 40 GiB
+2 × 80 layers × 8 kv_heads × 128 head_dim × 2 bytes
+    = 327,680 bytes/token = 0.3125 MiB/token   (bf16)
+327,680 × 131,072 tokens
+    = 42,949,672,960 bytes = exactly 40 GiB    (bf16)
 ```
 
 Forty GiB of cache, on top of the weights, on a machine with ~95 GiB usable. That
 is the line item people forget.
 
-**Architecture changes this enormously.** DeepSeek-V2's multi-head latent
-attention (MLA) compresses the KV cache into a low-rank latent vector; the paper
-reports a **93.3% KV cache reduction** versus DeepSeek 67B
-([arXiv:2405.04434](https://arxiv.org/abs/2405.04434)). Hybrid and
-linear-attention designs go further: the Jamba paper's Table 1 puts KV cache at
-256K context at 128 GB for LLaMA-2, 32 GB for Mistral and Mixtral, and **4 GB for
-Jamba** ([arXiv:2403.19887](https://arxiv.org/abs/2403.19887)). Two models with
-the same parameter count can differ by an order of magnitude in cache cost.
+### Architecture changes this enormously
+
+Two published results set the range. DeepSeek-V2's multi-head latent attention
+(MLA) compresses the KV cache into a low-rank latent vector; the paper reports a
+**93.3% KV cache reduction** versus DeepSeek 67B
+([arXiv:2405.04434](https://arxiv.org/abs/2405.04434)). The Jamba paper's Table 1
+puts KV cache at 256K context at 128 GB for LLaMA-2, 32 GB for Mistral and
+Mixtral, and **4 GB for Jamba** ([arXiv:2403.19887](https://arxiv.org/abs/2403.19887)).
+
+Computed directly from each model's published `config.json` on 2026-07-27, **all
+at bf16**, the same spread shows up in shipping models:
+
+| Model | Attention layers | `kv_heads` | `head_dim` | Bytes/token (bf16) |
+| --- | --- | --- | --- | --- |
+| GLM-4.7 | 92 of 92 | 8 | 128 | 376,832 B = 0.359 MiB |
+| Llama-3.3-70B | 80 of 80 | 8 | 128 | 327,680 B = 0.313 MiB |
+| MiniMax-M2.7 | 62 of 62 | 8 | 128 | 253,952 B = 0.242 MiB |
+| Qwen3-Coder-Next | **12 of 48** | 2 | 256 | 24,576 B = 0.023 MiB |
+
+That is a **15× spread**, and only one of the four numbers is explained by
+parameter count. Qwen3-Coder-Next carries `full_attention_interval: 4` in its
+config: only every fourth layer is full attention, so **12** layers enter the
+formula, not 48. Miss that key and you overestimate its cache by 4×.
+
+<Warning>
+  **Recompute this from `config.json` yourself. Do not trust any published KV
+  table, including this one.**
+
+  The first draft of this table was wrong — two rows were doubled by applying the
+  K+V factor of `2` twice, once in the formula and once again by hand. The error
+  survived a review pass and was caught only by recomputing from the source
+  configs.
+
+  The cheapest check that catches it: **pick a row you trust and scale by the
+  ratio.** GLM-4.7 and Llama-3.3-70B have identical `kv_heads` and `head_dim`, so
+  GLM's figure must be exactly `80 / 92` of Llama's — 0.3125 × 92/80 = 0.359 MiB.
+  It is. MiniMax-M2.7 has *fewer* layers than Llama with the same head geometry,
+  so its figure **must** come out below 0.3125 MiB; any answer above that is
+  arithmetically impossible, no matter how confidently it is stated.
+</Warning>
 
 ### Quantizing the cache: available on generate, not on the server
 
@@ -594,9 +639,21 @@ Model lists rot in weeks. A procedure does not.
   </Step>
 
   <Step title="Compute the KV budget for your real target context">
-    Use the formula above with the model's actual `num_key_value_heads` and
-    `head_dim`, at the context length you will really run — not the advertised
-    maximum. Add it to the weight size before deciding anything fits.
+    Read the model's own `config.json` and use the formula above with its actual
+    `num_key_value_heads` and `head_dim`, at the context length you will really
+    run — not the advertised maximum. Add it to the weight size before deciding
+    anything fits.
+
+    Three things to get right, in the order they bite:
+
+    - **Check for a hybrid-attention key** — `full_attention_interval` or
+      `layer_types`. Only full-attention layers hold a KV cache. Counting all of
+      them is the largest single error available here.
+    - **State the precision on the line.** `bytes_per_element` is 2 at bf16/fp16,
+      1 at fp8. A figure with no stated precision is not a figure.
+    - **Ratio-check against a model you already trust.** Same `kv_heads` and
+      `head_dim` means the result scales exactly with layer count — an answer that
+      breaks that ratio is wrong regardless of how it was derived.
   </Step>
 
   <Step title="Prefer natively-low-precision or QAT releases">
