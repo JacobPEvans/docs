@@ -669,23 +669,67 @@ Model lists rot in weeks. A procedure does not.
   </Step>
 
   <Step title="Verify what is actually loaded from the serving process">
-    Not from the API. See below.
+    Not from the API — a server can answer with a different model than you asked
+    for and return HTTP 200 with your requested name echoed back. The next
+    section is why that happens; the one after it is how to check.
   </Step>
 </Steps>
 
+## A server can answer with a different model than you asked for
+
+The last step is the one readers skip, because it sounds like paranoia until you
+know the failure exists. It is real, it is silent, and it is invisible from the
+API surface.
+
+**The `model` field in an OpenAI-compatible response is echoed from your
+request.** It is never read from the loaded checkpoint, so it cannot confirm what
+served you — it only confirms what you asked for. In `mlx_lm/server.py` the
+handler sets `self.requested_model = self.body.get("model", "default_model")` and
+then emits `"model": self.requested_model` in the response body. Ask for a model
+that is not loaded and you can still get HTTP 200 carrying that model's name.
+
+Two distinct mechanisms produce it, and neither leaves a trace in the response:
+
+| Mechanism | What happens |
+| --- | --- |
+| **Alias grafting on collapse** | A swap-style proxy collapses to serving one model. The other catalogue entries move to a disabled list — but **their physical model ids are grafted onto the surviving entry as aliases**, so "every known name still gets an answer". Requesting a disabled model's id resolves, to the surviving model's weights. |
+| **Fallback to whatever is served** | A router alias points at a model the backend does not serve. Instead of erroring, the request falls through to whatever **is** loaded. Nothing is misconfigured in a way you can look at: the alias is spelled correctly, the backend is healthy, the response is well-formed. |
+
+<Warning>
+  Observed cost, **in one deployment** — treat the shape as general and the
+  specifics as one estate's experience:
+
+  - Benchmark results reached a **public dataset attributing one model's
+    throughput to two others**, with error up to **~7×** before the substitution
+    was caught. Because several grafted ids resolved to the same resident, one
+    wrong measurement became several wrong published rows.
+  - A production agent ran on a **different model than its configuration named**,
+    for an unknown period.
+
+  Neither was visible from the API. Every request succeeded.
+</Warning>
+
+**One asymmetry is worth knowing.** A dedicated single-model worker *is*
+trustworthy in a narrow sense: it resolves the id it was asked for and returns
+404 on one it does not hold. But that is a guarantee about **the worker**, never
+about a proxy in front of it. Put a proxy in the path and the same 200 with the
+same label proves nothing again.
+
+**The design rule that prevents the whole class:** resolve names exactly or
+return an explicit error. Never alias a different model's physical id — a role
+alias like `default` or `coding` asserts intent and is fine to repoint, but a
+physical id asserts identity, and repointing it is a silent lie. Never fall back
+silently. And **log the resolved physical model alongside the requested name**,
+because this failure is defined by being invisible; one log line per load makes
+the entire class greppable.
+
+[Verifying the instrument](/local-llm/verifying-the-instrument) is the full
+treatment, including the measurement post-mortem and the two checks that look
+like verification but verify nothing.
+
 ### How to verify what a server is actually running
 
-[Verifying the instrument](/local-llm/verifying-the-instrument) covers this in
-full, including a case where an unverified proxy produced a 7× measurement error.
-The short version, with the source-level proof:
-
-The `model` field in an OpenAI-compatible response is **an echo of your request**,
-not a report of what was loaded. In `mlx_lm/server.py` the handler sets
-`self.requested_model = self.body.get("model", "default_model")` and then emits
-`"model": self.requested_model` in the response body. A swapping proxy in front
-of several workers can therefore answer, with HTTP 200, to a name it never loaded.
-
-Resolve the listening port to a process and read its command line instead
+Resolve the listening port to a process and read its command line
 (verified on macOS, 2026-07-27):
 
 ```bash
