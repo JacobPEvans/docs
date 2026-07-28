@@ -5,9 +5,10 @@ page_type: explanation
 ---
 
 <Note>
-Status: **in progress.** Core OpenBao is live and its AWS secrets engine now
-brokers automation's AWS access; the GitHub service engine remains in rollout.
-Each linked page carries the current status for its workstream.
+Status: **in progress.** OpenBao and both its secrets engines are live. The Mac
+container path is in use. The agent pool is declared in infrastructure code and
+its converge role is written, with the first canary run outstanding. Each linked
+page carries the current status for its workstream.
 </Note>
 
 > Seven phases, each independently shippable, each with a rollback. The boundary
@@ -16,18 +17,21 @@ Each linked page carries the current status for its workstream.
 ## Phases
 
 <Steps>
-  <Step title="Profiles + image scaffold + local Mac runs (in progress)">
-    The three autonomy profiles land in nix-ai; the `nix-agent-sandbox` repo is
-    scaffolded with `agent-image` and `agent-cli`; first `agent run` works via
-    Apple `container` on the Mac.
+  <Step title="Profiles + image + local Mac runs (done)">
+    The three autonomy profiles landed in nix-ai; the `nix-agent-sandbox` repo
+    ships `agent-image` and `agent-cli`; `agent run` works via Apple
+    `container` on the Mac.
   </Step>
-  <Step title="Egress proxy on both platforms">
-    The allowlisting CONNECT proxy ships for the Mac and docker-host; nftables
-    rules land on docker-host via Ansible.
+  <Step title="The agent pool in infrastructure code (done)">
+    A dedicated firewall profile for pooled agent guests — internal services
+    plus the forward proxy, and no direct outbound web rule — and the proxy
+    guest that holds the domain allowlist. Both are declared in tofu-proxmox.
   </Step>
-  <Step title="Proxmox dispatch">
-    `agent-run.yml` reusable workflow dispatches runs to docker-host ephemeral
-    runners via `workflow_dispatch` or the `ai:run` label.
+  <Step title="Pool converge role + canary (role written, canary pending)">
+    The `agent_guest` role converges a stock Debian LXC into a queue-pulling
+    agent guest: one systemd unit per job, credentials rendered per job,
+    transcripts shipped. The canary is one real job per agent CLI on a pool
+    guest; the legacy runtime retires only after it passes.
   </Step>
   <Step title="OpenBao (AWS STS live)">
     Core OpenBao is deployed. AppRole and response-wrapped bootstrap provide the
@@ -46,9 +50,10 @@ Each linked page carries the current status for its workstream.
     break-glass credentials.
   </Step>
   <Step title="Decommission">
-    ai-pool LXCs removed from tofu-proxmox; launcher zsh deleted from
-    nix-darwin; [Doppler](/security/tools/doppler) turned off; optional
-    credential-injecting proxy for static-credential backends.
+    The legacy agent guests and the launcher zsh they needed are removed once
+    the pool carries load; routine machine secrets finish moving out of
+    [Doppler](/security/tools/doppler); optional credential-injecting proxy for
+    static-credential backends.
   </Step>
 </Steps>
 
@@ -58,9 +63,9 @@ Each linked page carries the current status for its workstream.
 | --- | --- | --- |
 | [nix-claude-code](/nix/nix-claude-code) | Interactive permission data only | No autonomous configs ever rendered here |
 | [nix-ai](/nix/nix-ai) | The three profiles + posture-aware formatters | Phase 1 |
-| `nix-agent-sandbox` (new, dryvist) | Image, egress proxy, agent-cli, agent-run.yml | Phases 1–3 |
-| [tofu-proxmox](/infrastructure/repos/tofu-proxmox) | docker-host VM kept | ai-pool LXCs removed in phase 7 |
-| [ansible-proxmox-apps](/infrastructure/repos/ansible-proxmox-apps) | Docker internal network, nftables, proxy deploy, runners | Phases 2–3 |
+| `nix-agent-sandbox` (dryvist) | The Mac path: `agent-image` and `agent-cli` | Phase 1 |
+| [tofu-proxmox](/infrastructure/repos/tofu-proxmox) | Pool guests, their firewall profile, the proxy guest | Phase 2 |
+| `ansible-proxmox-ai` (dryvist) | The `agent_guest` converge role and the queue worker | Phase 3 |
 | [nix-darwin](/nix/nix-darwin) | Installs agent-cli | Launcher zsh deleted in phase 7 |
 
 ## Pages this supersedes in part

@@ -5,8 +5,10 @@ page_type: overview
 ---
 
 <Note>
-Status: **planned**, phase 1 in progress. This section documents an approved
-architecture; the [roadmap](/autonomous-agents/roadmap) tracks what exists today.
+Status: **partly live.** The profiles, the Mac container path, and the GitHub
+secrets engine are in use; the Proxmox agent pool and its egress proxy are
+declared in infrastructure code with the converge role written, pending a first
+canary run. The [roadmap](/autonomous-agents/roadmap) tracks each workstream.
 </Note>
 
 > Stop asking the agent for permission. Put it somewhere it can't hurt anything,
@@ -29,7 +31,7 @@ isolated environment, and the real controls are credentials, network egress, and
 | --- | --- | --- |
 | **Anthropic** | `--dangerously-skip-permissions` | Only inside a [devcontainer](https://code.claude.com/docs/en/devcontainer) or [sandbox](https://code.claude.com/docs/en/sandbox-environments); hard-rejected when running as root. Agent SDK secure deployment: never mount host secrets, inject credentials from outside, credential-injecting proxy as the end-state. |
 | **OpenAI Codex** | `approval_policy` + `sandbox_mode` axes | [`--yolo`](https://developers.openai.com/codex/) (`danger-full-access` + `never`) only inside a container; network is off by default even in `workspace-write`. |
-| **Google Gemini** | `--approval-mode yolo` | [Sandbox is opt-in](https://geminicli.com/docs/cli/sandbox/) and not coupled to yolo — the weakest pairing of the three, so this architecture enforces the coupling structurally: yolo configs exist only inside the image. |
+| **Google Gemini** | `--approval-mode yolo` | [Sandbox is opt-in](https://geminicli.com/docs/cli/sandbox/) and not coupled to yolo — the weakest pairing of the three, and the only tool that cannot persist yolo in settings at all, so the coupling is enforced by the launcher and the sandbox around it. |
 
 The convergent model: *the container is the boundary; bypass flags only inside it;
 default-deny egress; short-lived scoped credentials injected from outside; git as
@@ -45,6 +47,11 @@ existing formatter layer. See [nix-ai](/nix/nix-ai) for the rendering pipeline.
 | `interactive` | Mac host (unchanged) | current allow/ask/deny + auto mode | `workspace-write` + approvals | `auto_edit` |
 | `autonomous` | inside containers ONLY | `bypassPermissions` + ~10-entry residual deny; `claude -p --bare --dangerously-skip-permissions` | `approval_policy="never"`, `sandbox_mode="danger-full-access"` (the container IS the sandbox; bwrap can't nest) | `--approval-mode yolo`, Gemini's own sandbox off |
 | `ci` | Actions runners | `autonomous` + JSON output overlay | same | same |
+
+One exception breaks the "configs only, no flags" shape: Gemini strips the
+settings key that would persist yolo, so every autonomous Gemini run must pass
+`--approval-mode yolo` on the command line, and the launcher asserts the flag is
+present. The rendered settings block for Gemini exists for parity, not effect.
 
 ## What happens to the 640 entries
 
@@ -66,10 +73,11 @@ made of credentials and packets.
 
 Two invariants are enforced in code, not convention:
 
-1. **Autonomous configs are only ever baked into the container image.** No code
-   path renders a bypass-mode settings file onto a host filesystem. You cannot
-   accidentally run yolo on the Mac because the config to do so does not exist
-   there.
+1. **Autonomous configs exist only inside a boundary** — baked into the
+   container image, or rendered by the converge role onto a pool guest. No code
+   path writes a bypass-mode settings file onto a workstation filesystem. You
+   cannot accidentally run yolo on the Mac host because the config to do so does
+   not exist there.
 2. **The entrypoint refuses to start** unless `AGENT_SANDBOX=1` is set and the uid
    is not 0. Claude Code independently hard-rejects bypass as root; the image runs
    as `agent` (uid 1000) with no sudo.
@@ -85,7 +93,7 @@ may see.
 
 <CardGroup cols={2}>
   <Card title="Runtime" icon="box" href="/autonomous-agents/runtime">
-    One Nix-built OCI image, two platforms, the egress proxy, and the run lifecycle.
+    The Mac container path, the static LXC pool, the egress proxy, and the run lifecycle.
   </Card>
   <Card title="Secrets" icon="key" href="/autonomous-agents/secrets">
     OpenBao as the single machine-secrets backbone — headless reads, short-TTL credentials — and the four-tier model behind it.
