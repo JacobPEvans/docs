@@ -52,9 +52,10 @@ The off-site copy is meant to be identical to the on-site one — same layout, s
 names — so a restore reads the same paths either way and only swaps which store it
 points at.
 
-The off-site copy is rebuilt and verified: every object matches the on-site
-tier, and the check asks for the specific manifest file a restore needs rather
-than trusting a directory listing. The database can also write to both stores
+The off-site copy is rebuilt and verified at the object level: every object
+matches the on-site tier, and the check asks for the specific manifest file a
+restore needs rather than trusting a directory listing. Restore rehearsal
+covers the on-site tier. The database can also write to both stores
 natively as twin repositories, which retires the mirror step entirely; that
 mode is built and tested but not yet switched on.
 
