@@ -19,7 +19,10 @@ concurrency:
 jobs:
   run:
     uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@main
-    secrets: inherit
+    secrets:
+      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
     with:
       repo_context: >-
         Mintlify documentation site for docs.jacobpevans.com.
