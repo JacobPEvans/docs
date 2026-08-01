@@ -269,6 +269,14 @@
             ]
           },
           {
+            "group": "Agent ops",
+            "pages": [
+              "agent-ops/goal-statement-library",
+              "agent-ops/prompt-blocks",
+              "agent-ops/small-model-prompts"
+            ]
+          },
+          {
             "group": "Local LLM",
             "pages": [
               "local-llm/overview",
