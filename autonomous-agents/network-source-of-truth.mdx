@@ -5,8 +5,10 @@ page_type: explanation
 ---
 
 <Note>
-Status: **planned.** The platform is modeled and staged; the import and
-inventory-serving phases have not landed.
+Status: **partly live.** Read-only import and reconciliation are live for the
+platform's core domains — devices, addressing, and VLANs — holding zero drift
+against the live estate. Remaining domains and the inventory-serving phase are
+still ahead.
 </Note>
 
 > One authoritative model of what exists — so agents and automation stop guessing
@@ -37,8 +39,9 @@ The platform earns trust before it holds any, in three deliberate phases:
 </Steps>
 
 <Note>
-Phases 1–3 are **as-built pending**: the read-only import, reconciliation jobs, and
-inventory-serving integration are staged but not yet live.
+Phases 1 and 2 are **live for the platform's core domains**: read-only import and
+reconciliation hold zero drift against the live estate. Remaining domains and
+phase 3 (serve) are still ahead.
 </Note>
 
 ## What the agent gets
