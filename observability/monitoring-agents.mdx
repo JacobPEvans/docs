@@ -43,7 +43,7 @@ flowchart LR
   class awsdr external
 
   click splunk "/observability/repos/ansible-splunk" "The homelab Splunk install"
-  click awsdr "/observability/repos/tf-splunk-aws" "The AWS DR footprint"
+  click awsdr "/observability/repos/tofu-splunk-aws" "The AWS DR footprint"
 
   linkStyle 0,1,2,3,4 stroke:#E06B4A,stroke-width:2px,stroke-dasharray:4 3;
   linkStyle 5 stroke:#E6B35A,stroke-width:1.5px,stroke-dasharray:2 4;
@@ -82,9 +82,8 @@ The AI-coding-tool packs sit on top of the OrbStack cluster's `cribl-edge-standa
 | [`cc-edge-copilot-otel`](https://github.com/JacobPEvans/cc-edge-copilot-otel) | GitHub Copilot Chat (OTLP gRPC) |
 | [`cc-edge-vscode-io`](https://github.com/JacobPEvans/cc-edge-vscode-io) | VS Code (logs + telemetry) |
 | [`cc-edge-gemini-antigravity-io`](https://github.com/JacobPEvans/cc-edge-gemini-antigravity-io) | Gemini Antigravity |
-| [`cc-edge-macos-system`](https://github.com/JacobPEvans/cc-edge-macos-system) | macOS-native system events (archived predecessor) |
 
-The macOS host telemetry pack [`cc-edge-the-mac-pack`](/observability/repos/cc-edge-the-mac-pack) targets the **native macOS** Cribl Edge install (not the OrbStack-deployed one) — its exec inputs call macOS-only binaries that need host access, not a Linux container.
+The macOS host telemetry pack [`cc-edge-the-mac-pack`](/observability/repos/cc-edge-the-mac-pack) — renamed from `cc-edge-macos-system` — targets the **native macOS** Cribl Edge install (not the OrbStack-deployed one) — its exec inputs call macOS-only binaries that need host access, not a Linux container.
 
 ## REST collectors
 
@@ -119,7 +118,7 @@ Heartbeats prove the pipeline is up; **per-index silence detectors** prove the d
 
 ## Forwarding to AWS DR
 
-The Splunk install behind `cribl-stream` is the homelab indexer. [`tf-splunk-aws`](/observability/repos/tf-splunk-aws) provisions the AWS-side DR footprint: same data shape, smaller indexer tier, ready to take a failover. Cribl Stream's output config can be flipped from the homelab Splunk to the AWS HEC endpoint via a routing-rule change; downstream AI-observability dashboards keep working because they target the same indexes regardless of which Splunk tier is live.
+The Splunk install behind `cribl-stream` is the homelab indexer. [`tofu-splunk-aws`](/observability/repos/tofu-splunk-aws) provisions the AWS-side DR footprint: same data shape, smaller indexer tier, ready to take a failover. Cribl Stream's output config can be flipped from the homelab Splunk to the AWS HEC endpoint via a routing-rule change; downstream AI-observability dashboards keep working because they target the same indexes regardless of which Splunk tier is live.
 
 ## See also
 
