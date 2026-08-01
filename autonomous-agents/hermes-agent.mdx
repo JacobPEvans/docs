@@ -22,9 +22,10 @@ A dedicated LXC on the AI VLAN runs the `hermes gateway` daemon under systemd
   resident model** served behind the router and selected at runtime from an
   OpenBao value, so re-pointing it needs no rebuild and no agent restart. It
   runs with **thinking ON** and carries sampling guardrails for quantized brains.
-- **Memory:** the built-in `MEMORY.md` / `USER.md` plus the local **Hindsight**
-  provider (knowledge-graph recall, fully self-hosted). Everything lives under
-  `$HERMES_HOME` on a dedicated volume that is snapshotted and replicated off-node.
+- **Memory:** the built-in `MEMORY.md` / `USER.md`, stored under `$HERMES_HOME`
+  on a dedicated volume that is snapshotted and replicated off-node, plus the
+  **Hindsight** provider (knowledge-graph recall) — a separate self-hosted
+  service the agent reaches over the network rather than an in-process store.
 - **Containment:** the LXC is the blast-radius boundary — Hermes *profiles* isolate
   agent state, not OS access — with deliberately narrow egress.
 
@@ -52,7 +53,7 @@ model:
   base_url: 'http://<gpu-host>:11434/v1'
   api_mode: chat_completions
 memory:
-  provider: hindsight         # local, no external service
+  provider: hindsight         # separate self-hosted service, reached over the network
 agent:
   max_turns: 90               # budget — caps a runaway loop
 ```
