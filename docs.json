@@ -11,6 +11,7 @@
     { "source": "/infrastructure/repos/terraform-unifi", "destination": "/infrastructure/repos/tofu-unifi" },
     { "source": "/infrastructure/terraform-check-placement", "destination": "/infrastructure/tofu-check-placement" },
     { "source": "/infrastructure/cicd/terraform-runs-on", "destination": "/infrastructure/cicd/tofu-runs-on" },
+    { "source": "/observability/repos/tf-splunk-aws", "destination": "/observability/repos/tofu-splunk-aws" },
     { "source": "/infrastructure/hermes-agent", "destination": "/autonomous-agents/hermes-agent" },
     { "source": "/infrastructure/secrets-sops", "destination": "/security/sops-for-iac" },
     { "source": "/configuration/overview", "destination": "/infrastructure/configuration/overview" },
@@ -168,7 +169,7 @@
                 "group": "Repos",
                 "pages": [
                   "observability/repos/ansible-splunk",
-                  "observability/repos/tf-splunk-aws",
+                  "observability/repos/tofu-splunk-aws",
                   "observability/repos/cc-edge-the-mac-pack"
                 ]
               },

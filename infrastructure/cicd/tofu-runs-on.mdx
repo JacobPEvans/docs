@@ -8,7 +8,7 @@ import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 
 > GitHub Actions runners on AWS spot, on demand. ~10× cheaper than GitHub-hosted compute and twice as fast on warm cache.
 
-<RepoMeta language="HCL" status="active" lastActive="this week" repoUrl="https://github.com/JacobPEvans/terraform-runs-on" />
+<RepoMeta language="HCL" status="active" lastActive="this week" repoUrl="https://github.com/dryvist/tofu-runs-on" />
 
 `tofu-runs-on` provisions a [RunsOn](https://runs-on.com) v3 control plane on AWS — API Gateway + Lambda + ECS/Fargate — plus the IAM and networking it needs to spin up EC2 spot runners on demand. Workflows opt in with a `runs-on:` label; runners launch in seconds, run the job, terminate. Cribl.Cloud Free collects OTLP telemetry for runner performance tracking.
 
@@ -42,7 +42,7 @@ After the first apply finishes and the GitHub App is registered through the ingr
 
 <Steps>
   <Step title="Clone and let direnv activate the dev shell">
-    `git clone https://github.com/JacobPEvans/terraform-runs-on.git && cd terraform-runs-on && direnv allow`
+    `git clone https://github.com/dryvist/tofu-runs-on.git && cd tofu-runs-on && direnv allow`
   </Step>
   <Step title="Confirm the Terrakube workspace">
     The workspace receives short-lived AWS credentials from OpenBao's native dynamic credentials path. The RunsOn license is read ephemerally from its OpenBao path.
@@ -71,10 +71,10 @@ control plane.
   <Card title="Infrastructure overview" icon="server" href="/infrastructure/overview">
     Where RunsOn fits in the broader AWS surface.
   </Card>
-  <Card title="tofu-aws" icon="aws" href="https://github.com/JacobPEvans/terraform-aws">
+  <Card title="tofu-aws" icon="aws" href="https://github.com/dryvist/tofu-aws">
     The DR-tier AWS footprint these runners can deploy to.
   </Card>
-  <Card title="Source on GitHub" icon="github" href="https://github.com/JacobPEvans/terraform-runs-on">
+  <Card title="Source on GitHub" icon="github" href="https://github.com/dryvist/tofu-runs-on">
     Full module, migration guide, CI plan-output policy.
   </Card>
 </CardGroup>

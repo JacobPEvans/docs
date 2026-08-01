@@ -14,12 +14,12 @@ OpenTofu / Terraform / Ansible that builds and configures the homelab.
 
 | Repo | Does | More |
 | --- | --- | --- |
-| [terraform-proxmox](https://github.com/dryvist/terraform-proxmox) | Proxmox VM/LXC provisioning; the deployment + constants source of truth | [hub](/infrastructure/repos/tofu-proxmox) |
+| [tofu-proxmox](https://github.com/dryvist/tofu-proxmox) | Proxmox VM/LXC provisioning; the deployment + constants source of truth | [hub](/infrastructure/repos/tofu-proxmox) |
 | [ansible-proxmox](https://github.com/dryvist/ansible-proxmox) | Host tuning, ZFS pools, replication, monitoring | [hub](/infrastructure/repos/ansible-proxmox) |
 | [ansible-proxmox-apps](https://github.com/dryvist/ansible-proxmox-apps) | App roles — Cribl, HAProxy, and the rest | [hub](/infrastructure/repos/ansible-proxmox-apps) |
 | [tofu-unifi](https://github.com/dryvist/tofu-unifi) | UniFi network-as-code — VLANs, firewall, WLANs, VPN | [hub](/infrastructure/repos/tofu-unifi) |
 | [orbstack-kubernetes](https://github.com/dryvist/orbstack-kubernetes) | Local K8s monitoring stack (OTEL, Cribl) | [hub](/infrastructure/repos/orbstack-kubernetes) |
-| [terraform-runs-on](https://github.com/dryvist/terraform-runs-on) | Self-hosted GitHub Actions runners on AWS spot | [hub](/infrastructure/cicd/tofu-runs-on) |
+| [tofu-runs-on](https://github.com/dryvist/tofu-runs-on) | Self-hosted GitHub Actions runners on AWS spot | [hub](/infrastructure/cicd/tofu-runs-on) |
 | [tofu-aws-templates](https://github.com/dryvist/tofu-aws-templates) | Per-project AWS state-backend bootstrap template | [OpenTofu on AWS](/infrastructure/tofu-aws/overview) |
 | [tofu-github](https://github.com/dryvist/tofu-github) | Declarative GitHub org governance — rulesets, settings | [remote plan/apply](/infrastructure/iac-tooling#remote-planapply-terrakube) |
 | [iac-platform](https://github.com/dryvist/iac-platform) | Self-hosted Terrakube + Semaphore UI — remote OpenTofu/Ansible execution | [remote plan/apply](/infrastructure/iac-tooling#remote-planapply-terrakube) |
@@ -32,7 +32,7 @@ The telemetry spine — capture, route, index, visualize.
 | Repo | Does | More |
 | --- | --- | --- |
 | [ansible-splunk](https://github.com/dryvist/ansible-splunk) | Splunk Enterprise deploy + config | [hub](/observability/repos/ansible-splunk) |
-| [tf-splunk-aws](https://github.com/dryvist/tf-splunk-aws) | Cost-optimized Splunk on AWS for DR | [hub](/observability/repos/tf-splunk-aws) |
+| [tofu-splunk-aws](https://github.com/dryvist/tofu-splunk-aws) | Cost-optimized Splunk on AWS for DR | [hub](/observability/repos/tofu-splunk-aws) |
 | [cc-edge-the-mac-pack-io](https://github.com/JacobPEvans/cc-edge-the-mac-pack-io) | macOS health monitoring via Cribl Edge | [hub](/observability/repos/cc-edge-the-mac-pack) |
 | [cc-edge-claude-code-io](https://github.com/dryvist/cc-edge-claude-code-io) | Claude Code telemetry via Cribl Edge → Stream | — |
 | [cc-edge-copilot-otel](https://github.com/JacobPEvans/cc-edge-copilot-otel) | GitHub Copilot Chat OTel receiver | — |
@@ -84,7 +84,7 @@ Templates and standalone tools.
 | --- | --- | --- |
 | [docs](https://github.com/JacobPEvans/docs) | This site — the public architecture map | — |
 | [.github](https://github.com/dryvist/.github) | Org community-health files + the README template | — |
-| [.github-tofu](https://github.com/dryvist/.github-tofu) | Declarative GitHub repo/org configuration in OpenTofu | — |
+| [tofu-github](https://github.com/dryvist/tofu-github) | Declarative GitHub repo/org configuration in OpenTofu | — |
 
 <Note>
   Private repos (the live homelab, real network config, schemas) are catalogued on the gated [dryvist site](https://docs.dryvist.com), not here.
