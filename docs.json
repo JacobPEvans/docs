@@ -165,6 +165,7 @@
               "observability/overview",
               "observability/llm-observability",
               "observability/pipeline-flows",
+              "observability/splunk-frozen-restore",
               {
                 "group": "Repos",
                 "pages": [
@@ -242,6 +243,7 @@
             "pages": [
               "ai-development/overview",
               "ai-development/ai-orchestration-stack",
+              "ai-development/multi-model-review",
               "ai-development/agent-instruction-stack",
               "autonomous-agents/hermes-agent",
               "ai-development/repo-boundaries",
@@ -368,6 +370,13 @@
                   "conventions/diagramming",
                   "conventions/mermaid-style",
                   "conventions/mermaid-links"
+                ]
+              },
+              {
+                "group": "Data and storage",
+                "pages": [
+                  "conventions/data-protection-classes",
+                  "conventions/drive-reliability"
                 ]
               }
             ]
