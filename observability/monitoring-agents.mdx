@@ -61,7 +61,7 @@ Every Edge feeds a Stream; only Stream reaches Splunk; the AWS tier is one routi
 | `cribl-edge-standalone` (OrbStack) | StatefulSet in [`orbstack-kubernetes`](/infrastructure/repos/orbstack-kubernetes) `monitoring` namespace | AI tool telemetry — Claude Code (OTLP), Gemini Antigravity, VS Code | `cribl-stream-standalone` (OrbStack) |
 | `cribl-edge-managed` (OrbStack) | StatefulSet in `orbstack-kubernetes` | Subset of telemetry tagged for Cribl Cloud | Cribl Cloud |
 | `cribl-stream-standalone` (OrbStack) | StatefulSet in `orbstack-kubernetes` | Edge events + REST poll from `cc-stream-github-copilot-rest-io` | Splunk HEC |
-| `otel-collector` (OrbStack) | StatefulSet in `orbstack-kubernetes` | OTLP from Claude Code SDK, Bifrost, any in-cluster OTLP source | `cribl-stream-standalone` (OrbStack) |
+| `otel-collector` (OrbStack) | StatefulSet in `orbstack-kubernetes` | OTLP from Claude Code SDK, any in-cluster OTLP source | `cribl-stream-standalone` (OrbStack) |
 
 ## The Edge → Stream → Splunk invariant
 
@@ -99,7 +99,6 @@ REST collectors run on Stream rather than Edge because they're pull-based jobs a
 | Collector | Where | Role |
 | --- | --- | --- |
 | `otel-collector` (OrbStack) | StatefulSet in `orbstack-kubernetes` | OTLP gRPC/HTTP receiver (ports 4317/4318, NodePorts 30317/30318), forwards to `cribl-stream-standalone` |
-| Bifrost gateway | StatefulSet in `orbstack-kubernetes` (`bifrost`) | Multi-provider AI gateway; emits OTLP that the OTel collector picks up |
 
 Anything inside the OrbStack cluster that speaks OTLP gets pointed at the in-cluster OTel collector. Anything outside the cluster but on the same Mac (Claude Code, Gemini Antigravity, VS Code) talks to the OTel collector through the NodePort or hands off to the Cribl Edge standalone pack.
 
