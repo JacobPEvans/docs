@@ -59,7 +59,7 @@ The routing is opinionated, not magic: clear rules in `~/CLAUDE.md` and `AGENTS.
 
 ## Local AI gateway (LiteLLM)
 
-The [LiteLLM router pool](/local-llm/homelab-gpu) is the multi-provider gateway in front of workstation AI tools, fanning requests out to OpenAI, Gemini, OpenRouter, and local MLX inference based on the task class.
+The [LiteLLM router pool](/local-llm/homelab-gpu) is the single endpoint for the shared local inference fabric on the homelab. Workstation AI tools reach cloud providers (OpenAI, Gemini, OpenRouter) directly, using each tool's own native credentials — the router pool isn't in that path.
 
 Tools resolve task classes (Research, Coding, Review, Pre-commit) to a current model at call time — never hardcode model identifiers in committed config. When `localOnlyMode` is enabled, every request routes exclusively to the local MLX inference server on port 11434.
 
@@ -68,7 +68,7 @@ See [Homelab GPU](/local-llm/homelab-gpu) for routing conventions, local-only mo
 ### Priority order
 
 1. **Anthropic official** — Claude Code plugins, skills, patterns
-2. **LiteLLM router** — multi-provider routing across the router pool
+2. **LiteLLM router** — local, on-estate inference routing across the router pool
 3. **Personal or custom** — only when no alternative exists
 
 ## Repos that power this pipeline

@@ -11,7 +11,7 @@ Bifrost was evaluated as an OpenAI-compatible HTTP gateway for routing AI reques
 
 ## Current path
 
-The [LiteLLM router pool](/local-llm/homelab-gpu) handles multi-provider routing today. Workstation tools call local MLX directly or route through LiteLLM.
+The [LiteLLM router pool](/local-llm/homelab-gpu) is the single endpoint for local, on-estate inference — it took over Bifrost's local-routing role. Workstation tools call local MLX directly or route through the router pool for the shared local fabric; cloud providers (OpenAI, Gemini, OpenRouter) are reached directly, with each tool's own native credentials.
 
 ## See also
 
