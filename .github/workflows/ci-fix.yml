@@ -9,7 +9,6 @@ on:
 permissions:
   actions: read
   contents: write
-  id-token: write
   issues: write
   pull-requests: write
 
@@ -22,7 +21,8 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure' &&
-       github.event.workflow_run.head_branch != 'main')
+       github.event.workflow_run.head_branch != 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     uses: dryvist/ai-workflows/.github/workflows/cc-ci-fix.yml@main
     secrets:
       GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
