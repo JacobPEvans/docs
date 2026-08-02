@@ -54,7 +54,7 @@ architecture/                  System overviews, data pipelines, AI dev pipeline
 infrastructure/                Terraform module map
 configuration/                 Ansible role map
 nix/                           Nix ecosystem
-ai-development/                Claude, Gemini, Copilot, MLX
+ai-development/                Claude, Antigravity, Copilot, MLX
 observability/                 Cribl, Splunk, OTEL, MCP
 security/                      Doppler, SOPS, Keychain, Bitwarden, BWS, OpenBao
 tools/                         Dev utilities

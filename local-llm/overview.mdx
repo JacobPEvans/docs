@@ -11,7 +11,7 @@ page_type: overview
 "Local LLM" here means two distinct stacks that answer to the same OpenAI-shaped
 API, plus the strategy that decides which one runs what. Neither is an agent.
 Both are *just the model plus a serving stack* — the agent layer (Claude Code,
-Gemini, the routines) lives above them and calls in over HTTP.
+Antigravity, the routines) lives above them and calls in over HTTP.
 
 - **The client laptops** — `vllm-mlx` workers behind `llama-swap` on a
   laptop-class M4 Max, one resident model, tuned to coexist with a working
@@ -158,7 +158,7 @@ and it remains measurement-gated — covered honestly in
     Packages the inference stack — the `vllm-mlx` LaunchAgent, `llama-swap`, the MLX modules, and the AI-stack registry.
   </Card>
   <Card title="AI development pipeline" icon="diagram-project" href="/architecture/ai-pipeline">
-    Where local models sit in the bigger picture — routed alongside Claude, Gemini, and Copilot by task class.
+    Where local models sit in the bigger picture — routed alongside Claude, Antigravity, and Copilot by task class.
   </Card>
   <Card title="Local AI isolation" icon="shield-halved" href="/security/local-ai-isolation">
     Why a local model and the agents calling it still can't read protected secrets.
