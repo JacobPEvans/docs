@@ -244,6 +244,8 @@
               "ai-development/overview",
               "ai-development/ai-orchestration-stack",
               "ai-development/multi-model-review",
+              "ai-development/model-routing",
+              "ai-development/mcp-tool-plane",
               "ai-development/agent-instruction-stack",
               "autonomous-agents/hermes-agent",
               "ai-development/repo-boundaries",

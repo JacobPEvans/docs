@@ -15,7 +15,7 @@ canary run. The [roadmap](/autonomous-agents/roadmap) tracks each workstream.
 > then let it run.
 
 Today's safety model is fine-grained permission lists — roughly 640 allow/ask/deny
-entries rendered into Claude Code, Codex CLI, and Gemini CLI — running on a trusted
+entries rendered into Claude Code, Codex CLI, and the Antigravity (`agy`) CLI — running on a trusted
 Mac with the user's full credentials a keychain prompt away. That model assumes a
 human is watching. Autonomous agents invert it: **safety becomes the container
 boundary**, and tool permissions inside it become maximally lenient. The agent gets
@@ -31,7 +31,7 @@ isolated environment, and the real controls are credentials, network egress, and
 | --- | --- | --- |
 | **Anthropic** | `--dangerously-skip-permissions` | Only inside a [devcontainer](https://code.claude.com/docs/en/devcontainer) or [sandbox](https://code.claude.com/docs/en/sandbox-environments); hard-rejected when running as root. Agent SDK secure deployment: never mount host secrets, inject credentials from outside, credential-injecting proxy as the end-state. |
 | **OpenAI Codex** | `approval_policy` + `sandbox_mode` axes | [`--yolo`](https://developers.openai.com/codex/) (`danger-full-access` + `never`) only inside a container; network is off by default even in `workspace-write`. |
-| **Google Gemini** | `--approval-mode yolo` | [Sandbox is opt-in](https://geminicli.com/docs/cli/sandbox/) and not coupled to yolo — the weakest pairing of the three, and the only tool that cannot persist yolo in settings at all, so the coupling is enforced by the launcher and the sandbox around it. |
+| **Antigravity (`agy`)** | `--approval-mode yolo` | [Sandbox is opt-in](https://geminicli.com/docs/cli/sandbox/) and not coupled to yolo — the weakest pairing of the three, and the only tool that cannot persist yolo in settings at all, so the coupling is enforced by the launcher and the sandbox around it. |
 
 The convergent model: *the container is the boundary; bypass flags only inside it;
 default-deny egress; short-lived scoped credentials injected from outside; git as
@@ -42,16 +42,16 @@ the safety net.*
 Profiles are defined once in `nix-ai` and rendered to all three tools by the
 existing formatter layer. See [nix-ai](/nix/nix-ai) for the rendering pipeline.
 
-| Profile | Where | Claude | Codex | Gemini |
+| Profile | Where | Claude | Codex | Antigravity |
 | --- | --- | --- | --- | --- |
 | `interactive` | Mac host (unchanged) | current allow/ask/deny + auto mode | `workspace-write` + approvals | `auto_edit` |
-| `autonomous` | inside containers ONLY | `bypassPermissions` + ~10-entry residual deny; `claude -p --bare --dangerously-skip-permissions` | `approval_policy="never"`, `sandbox_mode="danger-full-access"` (the container IS the sandbox; bwrap can't nest) | `--approval-mode yolo`, Gemini's own sandbox off |
+| `autonomous` | inside containers ONLY | `bypassPermissions` + ~10-entry residual deny; `claude -p --bare --dangerously-skip-permissions` | `approval_policy="never"`, `sandbox_mode="danger-full-access"` (the container IS the sandbox; bwrap can't nest) | `--approval-mode yolo`, its own sandbox off |
 | `ci` | Actions runners | `autonomous` + JSON output overlay | same | same |
 
-One exception breaks the "configs only, no flags" shape: Gemini strips the
-settings key that would persist yolo, so every autonomous Gemini run must pass
+One exception breaks the "configs only, no flags" shape: Antigravity strips the
+settings key that would persist yolo, so every autonomous `agy` run must pass
 `--approval-mode yolo` on the command line, and the launcher asserts the flag is
-present. The rendered settings block for Gemini exists for parity, not effect.
+present. The rendered settings block for it exists for parity, not effect.
 
 ## What happens to the 640 entries
 

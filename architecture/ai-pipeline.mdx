@@ -6,7 +6,7 @@ page_type: explanation
 
 The goal: file a GitHub Issue, grab coffee, come back to a PR that's been implemented, tested, and reviewed by multiple AI models — just waiting for a thumbs up. Not fully there yet, but close enough to be dangerous.
 
-Humans decide *what* to build. AI agents handle the *how*. Automation runs the boring parts. A human gives the final sign-off. Claude, Gemini, Copilot, and local MLX models each do what they're best at — the right model for the right job instead of throwing everything at one.
+Humans decide *what* to build. AI agents handle the *how*. Automation runs the boring parts. A human gives the final sign-off. Claude, Antigravity, Copilot, and local MLX models each do what they're best at — the right model for the right job instead of throwing everything at one.
 
 ## The pipeline
 
@@ -18,7 +18,7 @@ Humans decide *what* to build. AI agents handle the *how*. Automation runs the b
 flowchart LR
   H1([Roadmap])
   H2([Issue])
-  A1([Claude / Gemini])
+  A1([Claude / Antigravity])
   A2([Code])
   T1([CI])
   T2([Lint])
@@ -48,14 +48,14 @@ Green nodes are human, coral are AI, ink are automation. The role is the node co
 
 ## The model-routing philosophy
 
-Every model has a sweet spot:
+The routing is opinionated, not magic: every model has a sweet spot, and clear
+rules in `~/CLAUDE.md` and `AGENTS.md` say *which* model to use *when* — the
+strongest model for multi-file refactors and deep reasoning, the cheap one for
+line-level completion, local inference for anything not worth cloud tokens.
 
-- **Claude** — best at multi-file refactors, deep reasoning, agentic loops. The default for non-trivial implementation work.
-- **Gemini** — great for second opinions, code review, broad context understanding.
-- **GitHub Copilot** — fastest for line-level completions inside the editor. Cheap for high-volume routine work.
-- **Local MLX** — Apple Silicon native inference for typo fixes, quick edits, and "I don't want to burn cloud tokens on this" tasks. The serving stack, tuning, and model strategy live under [Local LLM](/local-llm/overview).
-
-The routing is opinionated, not magic: clear rules in `~/CLAUDE.md` and `AGENTS.md` say *which* model to use *when*.
+The reasoning behind that split, and how it is governed once several agents share
+one endpoint, lives on [Model routing](/ai-development/model-routing). The serving
+stack that runs the local tiers is under [Local LLM](/local-llm/overview).
 
 ## Local AI gateway (LiteLLM)
 
