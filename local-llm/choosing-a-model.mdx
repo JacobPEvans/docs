@@ -7,9 +7,8 @@ page_type: reference
 > Every claim here carries a source and a date. Where the evidence is thin,
 > contested, or vendor-reported, the page says so instead of picking a side.
 
-This page exists because an earlier version of this advice stated confident
-conclusions that did not survive scrutiny. The rewrite trades confidence for
-citations. Two hardware envelopes frame it:
+This page trades confidence for citations: every conclusion below is sourced
+rather than asserted. Two hardware envelopes frame it:
 
 - **A single 128 GB Apple Silicon machine** — roughly 95 GiB usable for
   inference. `hw.memsize` on a "128GB" Mac is exactly `137,438,953,472` bytes
@@ -411,10 +410,8 @@ formula, not 48. Miss that key and you overestimate its cache by 4×.
   **Recompute this from `config.json` yourself. Do not trust any published KV
   table, including this one.**
 
-  The first draft of this table was wrong — two rows were doubled by applying the
-  K+V factor of `2` twice, once in the formula and once again by hand. The error
-  survived a review pass and was caught only by recomputing from the source
-  configs.
+  Applying the K+V factor of `2` twice — once in the formula and once again by
+  hand — silently doubles a row, and a review pass alone does not catch it.
 
   The cheapest check that catches it: **pick a row you trust and scale by the
   ratio.** GLM-4.7 and Llama-3.3-70B have identical `kv_heads` and `head_dim`, so

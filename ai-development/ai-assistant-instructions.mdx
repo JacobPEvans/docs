@@ -37,10 +37,9 @@ import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 
 Cross-repo writing standards that humans also need to read — commit conventions, no-scripts, diagramming, CI/CD policy, OpenTofu check placement, Nix package placement, scrubbed values — live on this docs site. See [Conventions](/conventions/overview) for the full set.
 
-Situational agent guidance that once lived here as always-loaded rules — pre-commit architecture, the Nix tool policy,
-shared-workflow org references — now ships as on-demand skills in
-[claude-code-plugins](/ai-development/claude-code-plugins), keeping the per-session footprint focused on voice, tool
-use, skill-execution integrity, and repository-local routing.
+Situational agent guidance — pre-commit architecture, the Nix tool policy, shared-workflow org references — ships as
+on-demand skills in [claude-code-plugins](/ai-development/claude-code-plugins) instead of always-loaded rules, keeping
+the per-session footprint focused on voice, tool use, skill-execution integrity, and repository-local routing.
 
 The [default development loop](/architecture/ai-pipeline) is intentionally lightweight: gather enough context, choose the
 simplest verifiable path, implement the smallest correct change, and report only the result plus verification. PRD-heavy,

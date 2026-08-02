@@ -19,9 +19,9 @@ per workspace. See [Consuming AWS workspace setup](/infrastructure/tofu-aws/cons
 
 ## Local and AI-agent access
 
-The static aws-vault base key that used to mint local `tf-<project>` sessions
-is retired. [OpenBao](/security/tools/openbao)'s AWS secrets engine brokers
-this path too, on two layers:
+No static aws-vault base key mints local `tf-<project>` sessions.
+[OpenBao](/security/tools/openbao)'s AWS secrets engine brokers this path
+too, on two layers:
 
 - **A dedicated broker identity** whose only IAM permission is `sts:AssumeRole`
   into broker-managed roles — it holds no direct resource access itself. Its

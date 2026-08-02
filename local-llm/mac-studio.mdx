@@ -114,9 +114,6 @@ The serving stack is fully tuned and optimized in code (merged and active on the
 
 ## Observability Status
 
-A live audit of the logging and metrics pipeline conducted on 2026-07-07 highlights the program of record:
-
-*   **Active Ingestion**: Core network and host syslogs are streaming at volume (UniFi syslog ~14.6M events/7d; Linux syslog ~1.2M/7d).
-*   **Silent Pipelines**: Telemetries for local LLM runs (`claude-code` logs) were found silent, and six declared Splunk indexes (`llm`, `otel`, `openai`, `vscode`, `mac_perf`, `ai`) were empty. NetFlow export was also determined to be dead upstream due to untracked drift in the controller configuration.
-*   **Root Cause**: The observability pipeline routing tier (HAProxy + Cribl Edge/Stream pair) was left on a decommissioned VLAN during the recent estate network renumbering, rendering it unreachable from the client/AI VLANs.
-*   **Remediation**: The firewall rules and port routing fixes shipped in `tofu-proxmox` **Issue #579** (PR #578, merged), which restored traffic via dedicated ports and logging rules.
+*   **Active Ingestion**: Core network and host syslogs stream at volume (UniFi syslog ~14.6M events/7d; Linux syslog ~1.2M/7d).
+*   **Routing**: The observability pipeline routing tier (HAProxy + Cribl Edge/Stream pair) reaches the client/AI VLANs over dedicated firewall ports and logging rules.
+*   **Known gap**: Telemetry for local LLM runs (`claude-code` logs) and NetFlow export are not yet confirmed flowing into their declared Splunk indexes (`llm`, `otel`, `openai`, `vscode`, `mac_perf`, `ai`) — verify against live index data before relying on them.
