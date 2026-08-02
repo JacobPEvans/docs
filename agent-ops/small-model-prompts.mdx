@@ -1,0 +1,131 @@
+---
+title: "Writing prompts for small models"
+description: "How to tune goal statements and prompt blocks for a ~30 GB local model — short imperatives, explicit checklists, hard STOP conditions, and verification the model cannot skip."
+page_type: explanation
+---
+
+The [goal-statement components](/agent-ops/goal-statement-library) and
+[prompt blocks](/agent-ops/prompt-blocks) are written to work on a frontier
+model. This page is the rewrite discipline for running the same work on a
+~30 GB local model (Qwen3.x / GLM-4.x 30B class, a single-node serving
+tier).
+
+## The governing result: shorter is better
+
+The measured result that governs everything here: cutting a 30B-class
+agent's prompt by more than half **improved** success rate, latency, and
+cost. Restating a model's default competence wastes tokens and dilutes the
+task-specific signal. The test for every line: *if deleting it would not
+change what a 30B-class model does, delete it.*
+
+A small model does not fail by ignoring your prompt. It fails by weighting
+all of it equally — so a paragraph of context costs the same attention as
+the one hard rule buried inside it. The fix is structural, not rhetorical.
+
+## Rewrite rules
+
+1. **Short imperative sentences.** One idea each. "Run the check. Quote the
+   output." — not "it would be advisable to validate the result before
+   proceeding."
+2. **One action per line.** A numbered checklist where each line is a single
+   tool-sized step. A small model executes checklists reliably; it plans
+   multi-step strategies unreliably.
+3. **No implicit reasoning leaps.** If step 3 depends on a decision, make
+   the decision a step: "2. If the file exists, go to step 4. If not, go to
+   step 3." Never assume the model infers the branch.
+4. **Hard-coded STOP conditions.** Numbers, not judgment: "at most 30
+   turns", "never retry a failing tool more than twice", "three probes with
+   no new evidence -> stop". A small model cannot be trusted to notice it is
+   looping — the prompt must count for it. Use the
+   [T1 hard-stops block](/agent-ops/prompt-blocks#stop-and-escalation-conditions)
+   verbatim.
+5. **Concrete examples over abstractions.** Instead of "bound your
+   queries", write the bounded query: "run
+   `| tstats count where index=* by index` over the last hour". One worked
+   example outperforms three sentences of principle.
+6. **Verification the model cannot skip.** Encode the check in the
+   deliverable's format, not in an instruction. An evidence table with a
+   mandatory `evidence` column per row forces a tool call per claim — the
+   model cannot produce the artifact without doing the verification.
+   Prompt-level "please verify" gets skipped; format-level contracts do not.
+7. **Bounded choices only.** Every unfilled `<placeholder>` and every "use
+   your judgment" is an unbound choice the small model will resolve
+   arbitrarily. Fill placeholders with concrete values; if a choice must
+   stay open, enumerate the options.
+8. **Declare failure vocabulary.** Give the model the exact words for
+   partial results: `BLOCKED`, `NOT-CHECKED (budget)`, `UNAVAILABLE` with
+   the exact error. Without named outcomes, a small model papers over gaps
+   instead of declaring them.
+9. **Identity and tools in the variant, behavior in the base.** Keep the
+   shared base short and behavioral; per-surface identity, tool lists, and
+   environment go in a small appended variant. They change independently.
+10. **Repetition is a decoding failure, not a reasoning failure.** Tell the
+    model: output that degrades into repetition means stop generating and
+    flag it. "Thinking harder" through a repetition loop burns the context
+    window and traps the run.
+
+## What to cut and what to keep
+
+When shrinking a frontier-targeted goal statement to small-model size:
+
+| Cut | Keep (verbatim) |
+| --- | --- |
+| Rationale and "why" prose — the model does not need convincing | Hard numbers: budgets, deadlines, crash limits, retry caps |
+| Restatements of default competence ("write clean code", "be thorough") | STOP conditions, one per line |
+| Multi-lane missions — one lane per session for a small model | The deliverable format contract (table shape, required columns) |
+| Judgment-based guardrails ("be careful with…") | Mechanical guardrails ("never run X", "always quote output") |
+| Delegation contracts — small models orchestrate poorly; a frontier model orchestrates, small models execute | The denial list — verbatim, it is load-bearing at every tier |
+
+## Worked example
+
+The same requirement, written for each tier.
+
+**Frontier-targeted** (fine for a large model, unreliable on 30B):
+
+```text
+Investigate the recent errors across the fleet, correlate them with open
+issues, and file well-evidenced issues for anything actionable, being
+careful to verify claims and avoid duplicates.
+```
+
+**30B-targeted rewrite** (a template — fill the remaining placeholders
+before dispatch, per rule 7):
+
+```text
+Scope — do each step, in order:
+1. Run ONE bounded error survey: <exact query, with time window and cap>.
+2. List the top 5 services by error count. Quote the counts.
+3. For each of the 5: search open issues in <repo> for that service name.
+4. Classify each: KNOWN (cite the issue #) or NEW.
+5. For NEW only, and at most 3: file an issue containing the count, one
+   sample log line, and the time window.
+6. Deliverable: a table — service | error count | KNOWN/NEW | issue #.
+
+STOP conditions: 30 turns max. A query that fails twice -> mark the row
+UNAVAILABLE with the exact error and continue. More than 3 NEW findings ->
+file the top 3 by count, list the rest in the table only.
+Grading: a checker re-runs your query and opens every cited issue. A cited
+issue that does not exist scores the whole job 0.
+```
+
+Every judgment call in the first version ("recent", "actionable",
+"well-evidenced", "avoid duplicates") became a number, an exact query, a
+named classification, or a format contract in the second.
+
+## Choosing the tier at all
+
+Prompt tuning does not make a 30B model deep. Route tasks by what they
+need: high reasoning depth or cross-source synthesis belongs on the
+deep-reasoning tier; long-but-shallow tool chains run fine on the 30B tier
+with a checklist prompt. The
+[T2 escalation rubric](/agent-ops/prompt-blocks#stop-and-escalation-conditions)
+is the routing contract; [choosing a local model](/local-llm/choosing-a-model)
+holds more on verifying a model before you trust it.
+
+<Tip>
+**Grade the runs, keep the receipts.** Small-model reliability is
+empirical. Grade each curriculum-style run on completeness, correctness
+(spot-checked claim rate), evidence quality, and actionability — the
+[grading contract block](/agent-ops/prompt-blocks#verification-and-evidence-blocks)
+— and tune the prompt against the grades, not against intuition.
+</Tip>

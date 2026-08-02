@@ -53,7 +53,7 @@ Runtime secrets are never stored in Nix store paths or committed files. Three in
 | OpenBao subprocess wrapper | Splunk MCP | Reads scoped read-only vault credentials from a local credential store, obtains a short-lived token via [OpenBao](/security/tools/openbao), and injects the shared connection only into the child MCP process |
 | Doppler subprocess wrapper | Google Workspace MCP | `doppler run -p <project> -c <config> -- <binary>` |
 | macOS Keychain via shell init | HuggingFace token, service API keys | `security find-generic-password` exported in `~/.zshrc` |
-| Kubernetes Doppler Operator | Bifrost, Cribl pods | In-cluster operator syncs Doppler → K8s Secrets |
+| Kubernetes Doppler Operator | Cribl pods | In-cluster operator syncs Doppler → K8s Secrets |
 
 The Splunk entry is one shared catalog item rendered for Claude, Codex, Qwen,
 and the Antigravity CLI and IDE surfaces. Antigravity (`agy`) is the

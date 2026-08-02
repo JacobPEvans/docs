@@ -80,7 +80,7 @@ On-prem self-hosted is the documented exception for jobs that genuinely need loc
 
 The leading `runs-on=${{ github.run_id }}` segment is **required** so the RunsOn control plane can correlate the GitHub Actions `workflow_job` webhook back to the originating run — without it, the job hangs in `queued`. The shared reusable workflows accept a `runner_label` input (default `ubuntu-latest`); callers opt in by passing the RunsOn label string.
 
-Full RunsOn label catalog, prereqs (GitHub App allowlist), rollout playbook, and verification steps live in [`tofu-runs-on/docs/migration-guide.md`](https://github.com/JacobPEvans/terraform-runs-on/blob/main/docs/migration-guide.md).
+Full RunsOn label catalog, prereqs (GitHub App allowlist), rollout playbook, and verification steps live in [`tofu-runs-on/docs/migration-guide.md`](https://github.com/dryvist/tofu-runs-on/blob/main/docs/migration-guide.md).
 
 ### On-prem runner requirements
 

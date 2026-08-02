@@ -28,7 +28,7 @@ Not "should not." Cannot. The layered isolation (no credential at rest, scoped c
 
 `rm -rf`, force-push, `git reset --hard`, `gh repo delete`, prod-database drops, OpenTofu destroy, package downgrades — every one requires an explicit human decision in the same session. AI assistants pause and ask; CI workflows route through review.
 
-**How we enforce it.** Branch protection on `main` and feature branches via `.github-tofu`. CODEOWNERS gates security-sensitive paths. [Commit conventions](/conventions/commit-conventions) forbids destructive shortcuts. `--no-verify` and `--force` trigger PR-review flags.
+**How we enforce it.** Branch protection on `main` and feature branches via `tofu-github`. CODEOWNERS gates security-sensitive paths. [Commit conventions](/conventions/commit-conventions) forbids destructive shortcuts. `--no-verify` and `--force` trigger PR-review flags.
 
 ### 4. Elevated sessions require a real gate — MFA or an equivalent lock boundary
 
@@ -64,7 +64,7 @@ Ambiguity must never grant access. A missing config file, an unreachable target 
 
 A blameless retrospective requires timestamps. AWS CloudTrail logs every API call. GitHub audit log captures every org / repo settings change. The sudoers file restricts sudo to two declarative Nix paths whose execution is itself logged in system.log.
 
-**How we enforce it.** CloudTrail is on by default in every AWS account; org-level rulesets in `.github-tofu` ensure the GitHub audit log is queryable; the `nix-darwin/modules/darwin/security.nix` sudoers allowlist is short enough to read in one sitting.
+**How we enforce it.** CloudTrail is on by default in every AWS account; org-level rulesets in `tofu-github` ensure the GitHub audit log is queryable; the `nix-darwin/modules/darwin/security.nix` sudoers allowlist is short enough to read in one sitting.
 
 ### 10. Defense in depth — no single layer is the boundary
 
@@ -108,7 +108,7 @@ Losing the secrets store loses every secret. Backups that have never been restor
 | --- | --- |
 | 1, 5, 12, 13 | [tools/doppler](/security/tools/doppler), [tools/sops](/security/tools/sops), [tools/bitwarden](/security/tools/bitwarden) |
 | 2, 8, 10, 11 | [local-ai-isolation](/security/local-ai-isolation) |
-| 3, 7, 9 | [secrets-sync](/security/secrets-sync) gates and audit; `.github-tofu` rulesets |
+| 3, 7, 9 | [secrets-sync](/security/secrets-sync) gates and audit; `tofu-github` rulesets |
 | 4, 6, 14 | [tools/aws-vault](/security/tools/aws-vault), [tools/macos-keychain](/security/tools/macos-keychain) |
 | 15 | [tools/bitwarden](/security/tools/bitwarden), [tools/bws](/security/tools/bws) |
 

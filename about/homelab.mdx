@@ -53,31 +53,27 @@ and the vendor CLI, and the useful checks are rarely the advertised specs:
   every drive before trusting it.
 
 Firmware age has a second, sharper edge: the upgrade path itself can be long
-and mandatory. One arrival needed six sequential firmware updates to reach
-current, not one, because the vendor gates later versions behind a minimum
-earlier version. Read the release notes for prerequisites before scheduling
-the maintenance window — a "quick firmware update" turned into six reboots.
+and mandatory, since a vendor often gates later versions behind a minimum
+earlier version. Read the release notes for the full prerequisite chain, not
+just the latest release, before scheduling the maintenance window — a single
+update can turn out to require several sequential ones first.
 
-The most valuable lesson: don't trust a used server's reported hardware
-inventory until POST has completed cleanly at least once. One BMC reported
-drives — full model and serial numbers included — that had been physically
-removed. The stale data was identical across two independent management
-APIs and survived both a BMC reset and a full cold power cycle. The cause:
-hardware inventory is collected during POST, and POST never completed, so
-the BMC kept serving a snapshot over a year old — visible only in its own
-collection timestamp. Before trusting any drive or memory listing from a
-used machine's BMC, check that the inventory-collection timestamp is
-current. If it isn't, everything the BMC reports about installed hardware
+Don't trust a used server's reported hardware inventory until POST has
+completed cleanly at least once. Hardware inventory is collected during POST,
+so a BMC that never sees a clean POST can keep serving a stale snapshot —
+identical across every management API and unchanged by a BMC reset or a cold
+power cycle — with nothing to flag it except its own collection timestamp.
+Check that timestamp before trusting any drive or memory listing from a used
+machine's BMC; a stale one means everything reported about installed hardware
 is potentially fiction.
 
-That POST failure had a mundane cause: a single failed drive made the RAID
-controller's UEFI driver report unhealthy, which halted POST at an
-interactive prompt. With no monitor attached, the machine just looked hung
-— and because POST never finished, the BMC never got a window to run its
-queued firmware jobs, so they silently stalled instead of failing loudly.
-The fix was diagnostic, not electrical: modern BMCs can export a screenshot
-of the console over the management API, which turned an unexplained hang
-into a one-line diagnosis — another capability the oldest firmware lacks.
+A stalled POST is often diagnostic, not electrical: a single unhealthy
+component — a failing drive, a RAID controller flagging it in UEFI — can halt
+POST at an interactive prompt with no visible symptom on a headless machine,
+and firmware jobs queued behind that prompt never get a window to run. Modern
+BMCs can export a screenshot of the console over the management API, turning
+an unexplained hang into a one-line diagnosis — a capability the oldest
+firmware generations lack.
 
 Findings become tickets and follow-up tasks rather than remembered caveats,
 and the recorded inventory always reflects what the hardware reported — never
@@ -112,4 +108,4 @@ intervention required.
 
 ## DR plan
 
-[`tofu-aws`](https://github.com/JacobPEvans/terraform-aws) defines a cold AWS footprint sized to take a Splunk failover. Cribl Edge routes can be flipped to the AWS HEC endpoint via config change. Details: [tf-splunk-aws](/observability/repos/tf-splunk-aws).
+[`tofu-aws`](https://github.com/dryvist/tofu-aws) defines a cold AWS footprint sized to take a Splunk failover. Cribl Edge routes can be flipped to the AWS HEC endpoint via config change. Details: [tofu-splunk-aws](/observability/repos/tofu-splunk-aws).

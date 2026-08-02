@@ -11,6 +11,7 @@
     { "source": "/infrastructure/repos/terraform-unifi", "destination": "/infrastructure/repos/tofu-unifi" },
     { "source": "/infrastructure/terraform-check-placement", "destination": "/infrastructure/tofu-check-placement" },
     { "source": "/infrastructure/cicd/terraform-runs-on", "destination": "/infrastructure/cicd/tofu-runs-on" },
+    { "source": "/observability/repos/tf-splunk-aws", "destination": "/observability/repos/tofu-splunk-aws" },
     { "source": "/infrastructure/hermes-agent", "destination": "/autonomous-agents/hermes-agent" },
     { "source": "/infrastructure/secrets-sops", "destination": "/security/sops-for-iac" },
     { "source": "/configuration/overview", "destination": "/infrastructure/configuration/overview" },
@@ -164,11 +165,12 @@
               "observability/overview",
               "observability/llm-observability",
               "observability/pipeline-flows",
+              "observability/splunk-frozen-restore",
               {
                 "group": "Repos",
                 "pages": [
                   "observability/repos/ansible-splunk",
-                  "observability/repos/tf-splunk-aws",
+                  "observability/repos/tofu-splunk-aws",
                   "observability/repos/cc-edge-the-mac-pack"
                 ]
               },
@@ -241,6 +243,7 @@
             "pages": [
               "ai-development/overview",
               "ai-development/ai-orchestration-stack",
+              "ai-development/multi-model-review",
               "ai-development/agent-instruction-stack",
               "autonomous-agents/hermes-agent",
               "ai-development/repo-boundaries",
@@ -266,6 +269,14 @@
               "autonomous-agents/incident-management",
               "autonomous-agents/network-source-of-truth",
               "autonomous-agents/roadmap"
+            ]
+          },
+          {
+            "group": "Agent ops",
+            "pages": [
+              "agent-ops/goal-statement-library",
+              "agent-ops/prompt-blocks",
+              "agent-ops/small-model-prompts"
             ]
           },
           {
@@ -359,6 +370,13 @@
                   "conventions/diagramming",
                   "conventions/mermaid-style",
                   "conventions/mermaid-links"
+                ]
+              },
+              {
+                "group": "Data and storage",
+                "pages": [
+                  "conventions/data-protection-classes",
+                  "conventions/drive-reliability"
                 ]
               }
             ]

@@ -1,16 +1,16 @@
 ---
 title: "OrbStack Kubernetes"
-description: "Local Kubernetes cluster on macOS (OrbStack) running the monitoring stack: OTEL Collector, Cribl Edge, Cribl Stream, Bifrost AI gateway, MCP server."
+description: "Local Kubernetes cluster on macOS (OrbStack) running the monitoring stack: OTEL Collector, Cribl Edge, Cribl Stream, MCP server."
 page_type: repo
 ---
 
 import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 
-> The Mac control plane for the local AI stack — OTEL, two Cribl Edges, a Cribl Stream, an AI gateway, all in one OrbStack cluster.
+> The Mac control plane for the local AI stack — OTEL, two Cribl Edges, and a Cribl Stream, all in one OrbStack cluster.
 
 <RepoMeta language="Shell" status="active" lastActive="this week" repoUrl="https://github.com/JacobPEvans/orbstack-kubernetes" />
 
-`orbstack-kubernetes` is the Kustomize-based manifest set for a local Kubernetes cluster on [OrbStack](https://orbstack.dev/). It runs the AI-development monitoring stack as six StatefulSets in a single `monitoring` namespace: an OTEL Collector, two Cribl Edges (one cloud-managed, one standalone), a local Cribl Stream, a Cribl MCP server, and a [Bifrost](https://github.com/maximhq/bifrost) AI gateway.
+`orbstack-kubernetes` is the Kustomize-based manifest set for a local Kubernetes cluster on [OrbStack](https://orbstack.dev/). It runs the AI-development monitoring stack as five StatefulSets in a single `monitoring` namespace: an OTEL Collector, two Cribl Edges (one cloud-managed, one standalone), a local Cribl Stream, and a Cribl MCP server.
 
 ## Architecture invariant
 
@@ -25,7 +25,6 @@ import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 | `cribl-edge-standalone` | Local Edge with three packs ([claude-code-otel](https://github.com/JacobPEvans/cc-edge-claude-code-otel), [gemini-antigravity-io](https://github.com/JacobPEvans/cc-edge-gemini-antigravity-io), [vscode-io](https://github.com/JacobPEvans/cc-edge-vscode-io)), forwards to local Stream | :30910 |
 | `cribl-stream-standalone` | Local Stream leader, [Copilot REST collector](https://github.com/JacobPEvans/cc-stream-github-copilot-rest-io) pack, outputs to Splunk HEC | :30900 |
 | `cribl-mcp-server` | Cribl Cloud MCP API surface for Claude Code | :30030 |
-| `bifrost` | Bifrost AI gateway — multi-provider routing (OpenAI, Gemini, OpenRouter, local MLX) via OpenAI-compatible API | :30080 |
 
 Four `healthchecks.io` CronJobs ping every 5 minutes as dead-man switches: `pipeline-heartbeat`, `heartbeat-splunk`, `heartbeat-edge`, `heartbeat-otel`.
 
