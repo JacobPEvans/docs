@@ -16,7 +16,7 @@ import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 
 - **Every marketplace, wired up.** Anthropic's official marketplaces (`claude-plugins-official`, `anthropic-agent-skills`) plus 15+ curated community marketplaces, refreshing automatically.
 - **Plugins as data.** Every plugin you enable lands in `programs.claude.enabledPlugins`, pinned by `flake.lock`, rolled back with the rest of your generation.
-- **Permissions you can read.** Auto-approved tools, deny lists, and the WebFetch allowlist as structured Nix data — the same data feeds Codex, Gemini, and any other AI agent you wire up.
+- **Permissions you can read.** Auto-approved tools, deny lists, and the WebFetch allowlist as structured Nix data — the same data feeds Codex, Antigravity, and any other AI agent you wire up.
 - **Statusline themes.** Pick `powerline`, `ccstatusline`, or `daniel3303` with a single option.
 - **MCP plumbing.** Surface `programs.claude.mcpServers` from your favorite MCP runtime; they wire into Claude's `settings.json` exactly as the [official plugin reference](https://code.claude.com/docs/en/plugins-reference) specifies.
 - **Built on Anthropic's spec.** Reads `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json` per the upstream contract — no proprietary formats.
@@ -35,7 +35,7 @@ The four-repo Nix split each owns a slice of the install:
 
 - [`nix-darwin`](/nix/nix-darwin) — system layer (macOS, Homebrew, security)
 - [`nix-home`](/nix/nix-home) — user dev environment (shell, git, linters, credentials)
-- [`nix-ai`](/nix/nix-ai) — AI tool ecosystem (Claude Code binary, Gemini CLI, MCP servers, MLX modules)
+- [`nix-ai`](/nix/nix-ai) — AI tool ecosystem (Claude Code binary, the Antigravity CLI, MCP servers, MLX modules)
 - [`nix-devenv`](/nix/nix-devenv) — reusable per-language project shells
 - **`nix-claude-code` (this page)** — declarative Claude Code *configuration* on top of the binary that `nix-ai` packages
 

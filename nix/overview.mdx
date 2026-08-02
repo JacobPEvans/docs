@@ -6,7 +6,7 @@ page_type: overview
 
 > Reproducible everything. `nix build` and walk away.
 
-The four Nix repos are layered, not parallel. `nix-darwin` sits at the top and orchestrates the macOS system. `nix-home` defines the user environment via home-manager. `nix-ai` packages every AI coding tool — Claude, Gemini, Copilot, MLX, MCP servers. `nix-devenv` provides reusable project-level dev shells.
+The four Nix repos are layered, not parallel. `nix-darwin` sits at the top and orchestrates the macOS system. `nix-home` defines the user environment via home-manager. `nix-ai` packages every AI coding tool — Claude, Antigravity, Copilot, MLX, MCP servers. `nix-devenv` provides reusable project-level dev shells.
 
 Every flake in the ecosystem pins the same `nixpkgs` / `nix-darwin` / `home-manager` release channel, kept in lockstep across repos so one machine never mixes generations.
 
@@ -45,7 +45,7 @@ flowchart TB
 | --- | --- | --- |
 | **macOS system** | [macOS host](/nix/nix-darwin) | `environment.systemPackages`, sudoers, security, Touch ID, system-level config |
 | **User environment** | [User environment](/nix/nix-home) | `home.packages`, `programs.*` for zsh, git, tmux, direnv, ssh, gh |
-| **AI tooling** | [AI tooling](/nix/nix-ai) | Claude Code, Gemini, Copilot, MLX, MCP servers — declarative, version-pinned |
+| **AI tooling** | [AI tooling](/nix/nix-ai) | Claude Code, Antigravity, Copilot, MLX, MCP servers — declarative, version-pinned |
 | **Per-project shells** | [Dev shells](/nix/nix-devenv) | Reusable `flake.nix` templates entered via `direnv` on `cd` |
 
 ## Package placement
@@ -54,7 +54,7 @@ The boundary between system, user, and project is intentional:
 
 - `environment.systemPackages` (nix-darwin) — core bootstrap, macOS-only tools, GUI apps
 - `home.packages` (nix-home) — user dev tools, linters, CLIs that follow `$HOME`
-- AI packages (nix-ai) — Claude, Gemini, Copilot, MLX, MCP servers
+- AI packages (nix-ai) — Claude, Antigravity, Copilot, MLX, MCP servers
 - Project dev shells (nix-devenv) — language- or stack-specific tooling that should not pollute the global PATH
 
 `programs.*` declarations follow the same boundary; home-manager merges both layers cleanly.
@@ -72,7 +72,7 @@ These workflows do **not** use FlakeHub. FlakeHub's hosted binary cache no longe
     macOS system config. Imports `nix-ai` and `nix-home`. The top-level entry point.
   </Card>
   <Card title="nix-ai" icon="bot" href="/nix/nix-ai">
-    Every AI coding tool, packaged. Claude Code, Gemini CLI, Copilot, MLX, MCP servers.
+    Every AI coding tool, packaged. Claude Code, Antigravity, Copilot, MLX, MCP servers.
   </Card>
   <Card title="nix-home" icon="house" href="/nix/nix-home">
     User dev environment via home-manager. Shell, editor, git, dev tools.
