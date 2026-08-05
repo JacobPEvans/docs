@@ -45,6 +45,16 @@ Supply-chain safety for the publisher-agnostic minor/patch lane comes from a det
 
 Related updates batch into ecosystem groups (Terraform, AWS SDK, HuggingFace, OpenTelemetry, pytest, ESLint/TypeScript) plus a `.nix` version-pins group, so one review covers a coherent set instead of a PR per package. All trusted updates land in the same Monday/Thursday window — the same day and time across every repo. Renovate coordinates *schedules*, not cross-repo transactions: it cannot emit one PR spanning multiple repos, so each repo still gets its own PR in that shared window.
 
+## Nix flake locks are outside Renovate
+
+`flake.lock` is the one file Renovate does not touch. Its `nix` manager is disabled org-wide, and each nix repo instead calls a shared workflow that runs a bare `nix flake update` — every input in the lock moves together, onto one branch, as one pull request. Triggers are a weekly schedule, a `repository_dispatch` when an upstream repo releases, and manual dispatch; all three amend the same pull request rather than opening a second.
+
+The reason is structural, not preference. Renovate advances an input when the input's *reference* changes. Nix repos pin `nixpkgs` to a moving channel branch, whose reference never changes — new commits simply land on the same branch — so Renovate has nothing to diff and the locked revision would freeze permanently. Advancing it needs `nix flake update`, which in Renovate terms is `lockFileMaintenance`; that stays on for every other ecosystem, but on nix it resolves to absolute-latest, ignores `minimumReleaseAge`, and once looped roughly 60 pull requests a week.
+
+Staleness here is expensive rather than cosmetic: a pin that drifts off the Hydra-evaluated channel head loses binary-cache coverage and forces builds from source. The workflow reports that drift by comparing the locked revision against the published channel revision.
+
+Auto-merge on those pull requests is withheld whenever a `nixpkgs*` input moved, since a channel jump rebuilds the world on a machine configuration; a release bump of any other input still merges hands-off on green CI.
+
 ## Version pinning
 
 | Source | Pin |
