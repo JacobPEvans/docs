@@ -114,6 +114,7 @@
                   "infrastructure/vmid-network-tiers",
                   "infrastructure/kubernetes-overview",
                   "infrastructure/lxc-vs-docker",
+                  "infrastructure/packer-windows-proxmox",
                   "infrastructure/vpn-egress-failover",
                   "infrastructure/legacy-bmc-tactics",
                   "infrastructure/mac-homelab-setup"
@@ -166,6 +167,7 @@
               "observability/llm-observability",
               "observability/pipeline-flows",
               "observability/splunk-frozen-restore",
+              "observability/splunk-silent-failure-modes",
               {
                 "group": "Repos",
                 "pages": [
