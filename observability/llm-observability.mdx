@@ -9,8 +9,9 @@ page_type: explanation
 The [AI-coding-tool pipeline](/observability/overview) traces the IDEs. This is
 its sibling for the AI component tier: every component — including `dify`,
 `langflow`, `agent-exec`, `hermes-agent`, and `open-webui` — now emits
-OpenTelemetry for every LLM call, and the same Cribl Edge OTLP receiver routes
-the spans. Cribl handles all fan-out to Langfuse and Splunk, leaving zero
+OpenTelemetry for every LLM call, and so does the proxy and router tier that
+those components call through. Cribl Edge collects on the endpoint, Cribl Stream
+tags and fans out, and the spans land in both Langfuse and Splunk. There are zero
 direct-to-Splunk/Langfuse paths.
 
 ## Emitting traces — OpenLLMetry + OTEL GenAI
@@ -31,15 +32,16 @@ not the trace store — is what lets the same telemetry reach more than one plac
 
 A single collector tier owns ingest and fan-out. Cribl Edge runs **native
 OpenTelemetry sources**, one per signal type on its own port, so it can route by
-type without parsing payloads. From there it forks:
+type without parsing payloads. Edge relays to Cribl Stream, which tags each span
+with its producer and forks it in parallel:
 
 {/* Shape: fan-out. Apps -> Cribl -> two sinks. */}
 
 ```mermaid
 %%{init: {'theme':'base','look':'handDrawn','themeVariables':{'fontFamily':'Geist','fontSize':'14px','primaryColor':'#102937','primaryTextColor':'#F4EFE6','primaryBorderColor':'#4FB3A9','lineColor':'#4FB3A9','secondaryColor':'#0B1D2A','tertiaryColor':'#1A2A38','clusterBkg':'rgba(79,179,169,0.08)','clusterBorder':'#4FB3A9'}}}%%
 flowchart LR
-  Apps([Orchestration stack<br/>OpenLLMetry])
-  Cribl([Cribl Edge<br/>native OTEL sources])
+  Apps([Orchestration stack<br/>+ proxy tier])
+  Cribl([Cribl<br/>Edge collects · Stream routes])
   LF([Langfuse<br/>trace · cost · eval])
   SP[(Splunk<br/>archival · SIEM)]
 
@@ -68,6 +70,50 @@ flowchart LR
 Apps never talk to a trace store directly, and they never reach across into the
 monitoring tier — they emit to the collector, and the collector decides where it
 goes. One ingest point, two sinks, no second collector to run.
+
+## Reaching the pipeline: subdomains, TLS, and who gets gated
+
+Two rules govern how anything reaches a service in this stack, and both matter
+for telemetry.
+
+**Every service answers on its own subdomain over TLS.** A caller uses
+`https://<app>.<subdomain>/` and nothing else. No caller — human, agent, or
+collector — targets a raw port. The port a service listens on is an
+implementation detail of the host it runs on, so a config that hardcodes one
+breaks the moment the service moves. Naming the subdomain instead means a move
+costs a DNS record, not an edit in every producer.
+
+**Single sign-on gates humans, never ingestion.** The forward-auth layer sits in
+front of the human-facing routes: dashboards, trace browsers, admin consoles.
+Machine telemetry must not sit behind an interactive login — a collector cannot
+complete a browser redirect, and a pipeline that stalls on a login page drops
+data silently rather than failing loudly.
+
+You can tell the two apart by what an unauthenticated request gets back. Call an
+ingestion path with no credentials and the answer is the receiving service's own
+`401` — the service saw the request and rejected the credential. Call a
+human-facing path the same way and the answer is a redirect to the login flow —
+the request never reached the service at all. A `401` from the application is
+the signal that ingestion is correctly excluded from the human gate.
+
+## What the traces do not cover
+
+Two limits are worth stating plainly, because a dashboard that looks complete
+invites the wrong conclusion.
+
+**In-process tracing is not available for every serving backend.** Some model
+servers ship no OpenTelemetry integration at all. Calls to those backends are
+still recorded — the proxy tier in front of them attributes the model, the token
+counts, and the latency — but the span stops at the proxy boundary. You see that
+the call happened and what it cost in time and tokens. You do not see inside the
+server: no per-stage timing, no queue depth, no batching detail. Coverage of
+calls is complete; coverage of internals is not.
+
+**Per-call cost is only meaningful where a price exists.** Cost is computed from
+a published per-token price for the model. A locally served model has no such
+price, so its cost is reported as zero. That zero is a statement about billing,
+not about resource use — the call consumed power, memory, and time. Read cost
+figures as "what a vendor invoiced," and never as "what this workload consumed."
 
 ## Why Langfuse
 
