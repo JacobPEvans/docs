@@ -64,6 +64,11 @@ magnitude slower than memory inside one. Sharding pays its way when the
 alternative is *not running the model at all* — which is exactly the case this
 fleet's cluster serves.
 
+Measure residency with `vm_stat`'s wired-memory figure, never a process's RSS.
+Metal and unified-memory allocations don't show up in RSS at all, so a
+per-process memory reading can look fine while the host is actually pinned
+against its wired-memory ceiling.
+
 ## The decision: two workers, or one sharded model?
 
 ```mermaid
@@ -143,9 +148,10 @@ shakeout of running RDMA on consumer hardware across reboots and OS updates.
 | Thunderbolt carrier loss drove an uncapped standdown retry loop | **Fixed** — halts on peer-absent instead of retrying forever | landed |
 | RDMA protection-domain leak was reboot-only to clear | **Fixed** — self-reboot recovery | [dryvist/nix-ai#1478](https://github.com/dryvist/nix-ai/issues/1478); preflight check in progress at [dryvist/nix-ai#1442](https://github.com/dryvist/nix-ai/issues/1442) |
 | Warmup slot starvation caused hourly 429s under load | **Fixed** — repair caps and halt bounds | landed |
-| macOS re-enslaves the Thunderbolt port into `bridge0` after a reboot, starving RDMA | **In progress** | [dryvist/nix-darwin#1768](https://github.com/dryvist/nix-darwin/issues/1768) |
+| macOS re-enslaves the Thunderbolt port into `bridge0` after a reboot, starving RDMA | **Fixed** — boot daemon; verified at converge-time, reboot-time verification pending the next natural reboot | [dryvist/nix-darwin#2073](https://github.com/dryvist/nix-darwin/pull/2073) (nix-darwin#1768) |
 | Local Network privacy grants die whenever a content-addressed binary's signing identity changes | **Fixed** for cluster agents (stable-signing-identity interpreter convention); **in progress** for the gate proxy | [dryvist/nix-darwin#1940](https://github.com/dryvist/nix-darwin/issues/1940) |
-| Loopback rendezvous dial mismatch (`[::1]` vs IPv4) | **In progress** | [dryvist/nix-ai#1330](https://github.com/dryvist/nix-ai/issues/1330) |
+| Loopback rendezvous dial mismatch (`[::1]` vs IPv4) | **Fixed** — deployed | [dryvist/nix-ai#1330](https://github.com/dryvist/nix-ai/issues/1330) |
+| Silent no-shard wedge: `shardingMode` must match model architecture. `glm4_moe` implements pipeline parallelism only — the tensor-parallel default silently skips the split, every rank loads the full model, and generation wedges at the memory ceiling | **Fixed** — `shardingMode=pipeline` set per-model; an eval-time assertion to catch the mismatch generically is tracked | [dryvist/nix-darwin#2090](https://github.com/dryvist/nix-darwin/pull/2090) |
 
 The protection-domain and Local Network mechanisms behind two of those rows
 are worth understanding even though they're fixed, because they're the kind
