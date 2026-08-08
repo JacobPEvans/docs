@@ -9,11 +9,12 @@ page_type: explanation
 > that already fits.
 
 A second 128 GB Mac has arrived — it's already live as the always-on large-tier
-serving host (see [Homelab GPU](/local-llm/homelab-gpu)). What hasn't landed yet
-is using its Thunderbolt link to *shard* a model across both machines for
-overnight, latency-tolerant batch work bigger than either can do alone. This
-page is the honest version of how that would work — because the obvious mental
-model is wrong in a way that changes the whole design.
+serving host (see [Homelab GPU](/local-llm/homelab-gpu)). The Thunderbolt link
+that *shards* a model across both machines is now deployed too, for
+latency-tolerant work bigger than either can do alone. What is still missing is
+a number: the sharded rung has not been benchmarked. This page is the honest
+version of how it works — because the obvious mental model is wrong in a way
+that changes the whole design.
 
 ## The one thing to get right
 
@@ -71,11 +72,30 @@ flowchart TB
 ## The honest fit math
 
 "256 GB" is a ceiling, not a usable target. Sharding has per-node overhead, and
-the KV cache needs room too. A tensor-parallel split of a trillion-parameter
-4-bit model can need well over 128 GB *per node* — which won't fit on two 128 GB
-Macs at all. The realistic sweet spot is a **pipeline-parallel split of a model
-in the ~200–230 GB-weights range**, leaving each node under its 128 GB with cache
-headroom. Push toward a true 256 GB and you starve the cache and fall into swap.
+the KV cache needs room too. A trillion-parameter 4-bit model can need well over
+128 GB *per node* — which won't fit on two 128 GB Macs at all. The realistic
+sweet spot is a **model in the ~200–230 GB-weights range**, split so each node
+stays under its 128 GB with cache headroom. Push toward a true 256 GB and you
+starve the cache and fall into swap.
+
+### Which split mode you get — check, don't assume
+
+MLX offers two ways to split a model, and the difference matters:
+
+- **Tensor parallel** — every node holds a slice of each layer. This is the
+  runtime's **default**, and it emits **no flag**.
+- **Pipeline parallel** — each node holds whole layers. It is opt-*out* of the
+  default, needs an explicit flag, and only some model architectures implement
+  it at all.
+
+<Warning>
+  A default that emits no flag is invisible in a launch command, so an absent
+  flag reads as "nothing was configured" when it actually means "the default is
+  active." Verified 2026-07-27, the deployed two-Mac cluster runs **tensor
+  parallel** — earlier documentation here claimed pipeline parallel, which was
+  wrong. Read the split mode off the running process's arguments, not off a
+  design note.
+</Warning>
 
 ## Capacity, not speed — and why overnight makes that fine
 
@@ -97,8 +117,43 @@ real risks for an overnight, unattended job:
   re-enabling.
 - Long many-iteration runs have hit transport-resource exhaustion and GPU
   command-buffer timeouts in the wild.
+- Some of that exhaustion is **boot-scoped** and no amount of retrying clears
+  it — see below.
 - macOS Local Network privacy can silently block the rendezvous entirely — see
   below.
+
+### Boot-scoped resource debt: retrying makes it worse
+
+The RDMA transport allocates a **protection domain** per worker. A worker that
+dies part-way through startup leaks its protection domain, and the kernel does
+not reclaim it while the machine stays up. The debt is scoped to the boot, not
+to the process — so an automatic retry loop is not neutral. Each retry burns
+another domain, and after a handful the transport can no longer initialize at
+all. The failure that follows looks like a *new* problem; it is the retries.
+
+The pattern that fixes it generalizes to any resource that only a reboot
+reclaims:
+
+<Steps>
+  <Step title="Count the failures, not the symptoms">
+    Track consecutive failed starts. The count, not the error text, is the
+    signal — the error text changes as the debt grows.
+  </Step>
+  <Step title="Latch a halt marker and stop retrying">
+    Past a small threshold, write a durable halt marker and stop the retry loop
+    dead. A live-fire drill on 2026-07-27 produced three consecutive failed
+    starts, three leaked domains, and a latched halt — exactly as designed.
+  </Step>
+  <Step title="Reboot to clear it — never clear the marker to retry">
+    Deleting the marker to "try once more" spends the last of a resource that
+    is already gone. The reboot is the fix; the marker is the record.
+  </Step>
+  <Step title="Poll the marker; don't wait on the alert">
+    The notifier is part of the same estate and can be down when the halt
+    fires. A halt you only learn about from a push notification is a halt you
+    can miss. Check the marker on a schedule.
+  </Step>
+</Steps>
 
 ### macOS Local Network privacy silently blocks the rendezvous
 
