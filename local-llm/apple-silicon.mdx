@@ -62,7 +62,7 @@ portable to a smaller machine without re-measuring.
 | Paged KV cache | on | Pages the cache like vLLM's paged attention. Prerequisite for prefix sharing. |
 | Prefix cache | on | Reuses already-prefilled conversation prefixes across turns. The biggest single win for multi-turn and agentic tool loops — no re-prefill of unchanged context. |
 | Continuous batching | on | Folds parallel sequences into one GPU forward pass. |
-| Max sequences / concurrency | small (single digits) | Bounds peak memory under batching. Set too high and a burst of callers saturates the worker; set to 1 and you lose batching entirely. |
+| Max sequences / concurrency | small — one decode slot for large MoE models | **Not a "more is better" knob.** It bounds peak memory under batching, but on a large MoE two streams give no reliable gain and four are *worse* than one. Measure it per model — see "Concurrency is measured, not assumed" below. |
 | Idle TTL | short (minutes) | Idle dwell is the dominant memory cost — a resident model holds wired GPU memory whether or not it's working. A 4-bit MoE reloads from a fast volume in seconds, so evicting aggressively is cheap insurance against pressure building overnight. |
 | Generation cap | bounded | A default ceiling on output tokens so a runaway or oversized request can't dominate the queue for minutes. |
 | `ProcessType` | `Interactive` | **Not** `Background`. Background QoS clamps Metal throughput by roughly an order of magnitude — the worker runs, just many times slower. This one line is the difference between "usable" and "why is it so slow." |
@@ -74,6 +74,57 @@ portable to a smaller machine without re-measuring.
   registry, not in these flags. Picking and quantizing that model is its own
   topic: [Models & quantization](/local-llm/models-and-quantization).
 </Note>
+
+## Concurrency is measured, not assumed
+
+Raising concurrency on this stack ranges from useless to actively harmful.
+Measured on a large MoE model served with a single decode slot, weights proven
+by process inspection (verified 2026-07-26/27):
+
+| Concurrent streams | Aggregate decode | Worst time-to-first-token |
+| --- | --- | --- |
+| 1 | 7.27–11.05 tok/s | under 1 s |
+| 2 | 8.46–13.77 tok/s — no reliable gain | — |
+| 4 | **4.42 tok/s — worse than a single stream** | **148 s** |
+
+With one decode slot the server serializes rather than batches, so extra load
+buys queueing, not throughput. For large mixture-of-experts models, concurrency
+above 1 is a regression, not a missed opportunity. Whatever the right number is
+for a small model, **measure it per model** — it does not scale from one model
+to the next.
+
+<Note>
+  **Single-slot is the current setting, not a permanent verdict.** It is what
+  holds while single-stream stability is being settled. The intended direction is
+  to raise concurrency once concurrency-1 is solid — per model, on measured
+  evidence, never as a global flip.
+</Note>
+
+### The proxy rejects; the server serializes
+
+Two layers behave differently under load, and a client has to know which one it
+is talking to.
+
+- **The swapping proxy rejects.** A second simultaneous request gets an
+  immediate HTTP 429 with a "too many requests" body. No queue, no partial
+  service. **Every client must treat 429 as a normal condition and back off**,
+  not raise an alert.
+- **The model server serializes.** Behind the proxy, with a single decode slot,
+  requests wait their turn instead of being refused. That is where the table
+  above comes from.
+
+One caution on reading a 429: it does not by itself prove a slot is busy. It can
+also fall out of a config-reload window in which the requested model is
+momentarily absent.
+
+### One definition, and it is derived
+
+Express the concurrency limit as **one definition consumed everywhere**, never
+as a literal repeated in two places. A derived `1` and a hardcoded `1` are
+textually identical — only the source line tells them apart, which is exactly
+why two copies drift without anyone noticing. That happened here before the
+limit became a single derived value with a build-time assert that the emitted
+serve flags equal the declared one.
 
 ## Speculative decoding is off — on purpose
 

@@ -40,7 +40,7 @@ adds a LAN-facing gate.
 | Endpoint | Where | Purpose |
 | --- | --- | --- |
 | `127.0.0.1:11434` | Both hosts | `llama-swap` OpenAI-compatible API — the one URL every local client speaks. |
-| `127.0.0.1:11440` | Headless host (rank 0) | Clustered-mode `mlx-lm` endpoint, used only when the two Macs shard one model tensor-parallel over Thunderbolt. |
+| `127.0.0.1:11440` | Headless host (rank 0) | Clustered-mode `mlx-lm` endpoint, used only when the two Macs shard one model over Thunderbolt. |
 | `llm-large.<base-domain>` (TLS, LAN) | Headless host | A Caddy gate terminates TLS and enforces a bearer token, then proxies to loopback `11434`. Consumers reach the large tier by capability name, not host name. |
 
 ## How the repos compose
@@ -189,41 +189,13 @@ every shipped script under the platform shell, and the test suite proves the
 check itself fails when a violating construct is introduced. A guard that has
 never been shown to fail is not a guard.
 
-## Prove which model is actually loaded
-
-An OpenAI-shaped response cannot tell you what weights answered it.
-
-The `model` field in a chat completion is **echoed from the request**. Send
-`"model": "anything"` and a server that routed you elsewhere will still hand
-`"anything"` back. Likewise, `/v1/models` on a swapping proxy can enumerate
-everything the local weight cache has ever downloaded — it is a listing of the
-cache, not a claim that any of it is loaded or even servable.
-
-That gap is not theoretical. A model-discovery step in this stack built each
-proxy entry by string-substituting a model id into a command template — but it
-matched on one flag spelling while the template used another, so the
-substitution was a **silent no-op** and every auto-discovered entry launched
-with the default model's weights. Every request "succeeded." Every response
-echoed back the model the caller had asked for. Nothing anywhere in the HTTP
-layer disagreed.
-
-<Warning>
-  **The only valid verification is the process's own arguments.** Find the
-  process holding the port, then read the model argument off its command line:
-
-  ```bash
-  lsof -i :<port>              # → the listening pid
-  ps -p <pid> -o command=      # → the real --model argument
-  ```
-
-  Anything derived from the response body — the `model` field, a successful
-  round-trip, a plausible-sounding answer — proves only that *a* model replied.
-</Warning>
-
-The general rule this stack now runs on: **validate the instrument before you
-trust the signal.** A check that cannot be shown to fail is not evidence, and
-any benchmark, capability claim, or "the right model is live" assertion built
-on an unvalidated instrument has to be re-taken, not re-argued.
+One consequence is worth naming here, because this page is where the swapping
+proxy is described: a response from any endpoint above cannot tell you which
+weights answered it. The `model` field is echoed from the request, and a
+`/v1/models` listing enumerates the local cache rather than what is loaded. Read
+the model argument off the listening process before trusting any number taken
+through these ports — see
+[Verifying the instrument](/local-llm/verifying-the-instrument).
 
 ## The memory-safety control plane
 

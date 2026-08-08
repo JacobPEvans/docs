@@ -1,6 +1,6 @@
 ---
 title: "AI tooling"
-description: "Every AI coding tool, packaged. Claude Code, Gemini CLI, Copilot, MLX modules, 15+ MCP servers — declarative, reproducible, version-pinned."
+description: "Every AI coding tool, packaged. Claude Code, Antigravity, Copilot, MLX modules, 15+ MCP servers — declarative, reproducible, version-pinned."
 page_type: repo
 ---
 
@@ -19,7 +19,7 @@ reusable packaging public and environment topology private.
 
 ## What it does
 
-- Packages Claude Code, Gemini CLI, GitHub Copilot CLI, and assorted AI tooling
+- Packages Claude Code, the Antigravity (`agy`) CLI, GitHub Copilot CLI, and assorted AI tooling
 - Provides MLX module derivations for Apple Silicon
 - Pins 15+ MCP servers and exposes them as reusable Nix attributes
 - Exports an overlay so `nix-darwin` and `nix-home` can include AI tools without duplicating logic
@@ -46,14 +46,21 @@ Modules read `userConfig` via `_module.args` so nothing outside `maintainer-prof
 
 ### Secrets and injection
 
-Runtime secrets are never stored in Nix store paths or committed files. Three injection patterns are in use:
+Runtime secrets are never stored in Nix store paths or committed files. Four injection patterns are in use:
 
 | Pattern | Used by | Mechanism |
 | --- | --- | --- |
 | OpenBao subprocess wrapper | Splunk MCP | Reads scoped read-only vault credentials from a local credential store, obtains a short-lived token via [OpenBao](/security/tools/openbao), and injects the shared connection only into the child MCP process |
 | Doppler subprocess wrapper | Google Workspace MCP | `doppler run -p <project> -c <config> -- <binary>` |
-| macOS Keychain via shell init | HuggingFace token, service API keys | `security find-generic-password` exported in `~/.zshrc` |
-| Kubernetes Doppler Operator | Bifrost, Cribl pods | In-cluster operator syncs Doppler → K8s Secrets |
+| macOS Keychain via shell init | Model-hub and other third-party service API keys | `security find-generic-password` exported in `~/.zshrc` |
+| Kubernetes Doppler Operator | Cribl pods | In-cluster operator syncs Doppler → K8s Secrets |
+
+**Source-control credentials use none of these.** They are short-lived tokens
+minted on demand per request and never written to disk — not to the Keychain, not
+to a `.env`, and not to a direnv cache, since direnv persists its environment dump
+on disk and would turn a mint-time credential into a stored one. The Keychain row
+above covers third-party service keys only; treat any older guidance that routes
+source-control credentials through it as retired.
 
 The Splunk entry is one shared catalog item rendered for Claude, Codex, Qwen,
 and the Antigravity CLI and IDE surfaces. Antigravity (`agy`) is the

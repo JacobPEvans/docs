@@ -57,6 +57,79 @@ flowchart LR
 | --- | --- |
 | [HF dataset](https://huggingface.co/datasets/JacobPEvans/mlx-benchmarks), [HF Space viewer](https://huggingface.co/spaces/JacobPEvans/mlx-benchmarks-viewer) | [`nix-ai`](/nix/nix-ai) (vllm-mlx, llama-swap), `lm-eval`, `vllm`, agent-framework SDKs |
 
+<Warning>
+  **A row is only as good as its weight provenance.** A serving proxy was found
+  launching a fallback model's weights under other models' labels, which put
+  rows in the dataset measuring a model that was never loaded — one of them off
+  by 7x (verified 2026-07-26/27). Prove the loaded checkpoint from the running
+  process before you publish, and treat any historical row that cannot prove it
+  as unverified rather than as a baseline. See
+  [Verifying the instrument](/local-llm/verifying-the-instrument).
+</Warning>
+
+## The headline metric is cumulative, not decode-only
+
+**Cumulative tokens/second = (prompt tokens + completion tokens) ÷ total
+wall-clock.** That is the headline figure; decode-only rate is a secondary
+diagnostic.
+
+Decode-only throughput hides prefill. A model that reads its prompt several
+times faster delivers a visibly faster answer, and a decode-only number reports
+none of that gain — so tuning against it tunes for something the user never
+experiences. Cumulative counts every token the request touched against the
+time the user actually waited.
+
+The two metrics can rank models differently, which is the point. Report both
+columns; lead with cumulative.
+
+## Cumulative is meaningless without its regime
+
+Cumulative tokens/second is **highly sensitive to prompt size**, because prompt
+tokens are counted in the numerator and prefill is far faster than decode. The
+same model, on the same hardware, scored **551 cumulative at a 2291-token
+prompt** and **140.9 at a ~190-token prompt**. Neither is wrong; they are
+answers to different questions.
+
+So a cumulative figure without its regime is not a fast or slow result — it is
+an uninterpretable one:
+
+<Warning>
+  **Publish the regime with the number, every time.** At minimum: prompt size,
+  `max_tokens`, and cache state (assert `cached_tokens=0` per run if you are not
+  deliberately measuring cache hits). **Never compare two cumulative figures
+  taken in different regimes** — including your own earlier ones.
+</Warning>
+
+**Decode-only is the most regime-stable of the three rates**, which makes it the
+honest basis for a cross-model comparison even though cumulative is the
+headline. When two numbers disagree about which model is faster, check whether
+they were taken in the same regime before you believe either.
+
+### A worked comparison, one stated regime
+
+Isolated workers with loaded weights proven from the running command line, one
+model resident at a time, never through a proxy. Identical regime for all four
+rows: a unique filler prompt of 170–190 tokens with `cached_tokens=0` asserted
+per run, `max_tokens=300`, streaming with usage included. Cumulative is the
+median of three runs, with the observed range in brackets.
+
+| Model class | Cumulative (median, range) | Decode | Prefill | TTFT | Tool calls |
+| --- | --- | --- | --- | --- | --- |
+| 30B sparse MoE, coder-tuned (incumbent) | **163.4** (156.8–164.5) | 110.9 | 475–774 | 0.238–0.387 s | PASS |
+| 35B sparse MoE | 140.9 (140.7–141.7) | 102.0 | 355–360 | 0.53 s | PASS |
+| 80B sparse MoE, instruct | 112.1 (112.0–113.0) | 83.0 | 262 | 0.70 s | PASS |
+| Reasoning-first flash model | 111.6 (111.2–111.9) | 79.2 | 399 | 0.43 s | PASS, unusable as default |
+
+All four returned a genuine `tool_calls` **array** with
+`finish_reason: "tool_calls"` and correctly parsed arguments.
+
+The reasoning-first model is the cautionary row: it is competitive on every
+rate and **never exits thinking** at `max_tokens=300` — zero answer characters
+across all three runs, against 1022–1193 characters of reasoning. Fast, and
+produces no answer. A throughput table cannot see that; a tool-call and
+answer-length assertion can. Measure what the caller receives, not only how
+quickly tokens arrive.
+
 <RepoFit>
 Anything that runs an LLM benchmark and wants the result comparable across tools, models, and dates goes through this envelope. Per-tool harness logic stays upstream; the publisher stays thin. No CI benchmarking — MLX needs Apple Silicon hardware, so runs are local; CI only validates the publisher against fixtures.
 </RepoFit>

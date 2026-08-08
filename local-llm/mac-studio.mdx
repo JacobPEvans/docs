@@ -6,7 +6,7 @@ page_type: explanation
 
 > A stationary desktop-class Apple Silicon host serves the large-tier models to the entire LAN, allowing client laptops to delegate heavy or structured reasoning workloads without draining local battery or memory.
 
-The Mac Studio `jevans-ms` (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host. It runs a multi-model stack that holds two models resident in memory concurrently to eliminate the overhead of swapping multi-gigabyte weights. A swap-tier allows loading larger fallbacks on demand.
+The stationary Mac Studio (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host. It runs a multi-model stack that holds two models resident in memory concurrently to eliminate the overhead of swapping multi-gigabyte weights. A swap-tier allows loading larger fallbacks on demand.
 
 ## Model Registry & Verdicts
 
@@ -14,11 +14,11 @@ The homelab runs a curated set of local models on the Mac Studio. Through system
 
 | Model | Size & Config | Role | Verdict / Best Used For |
 | --- | --- | --- | --- |
-| **`Qwen3.6-35B-A3B-OptiQ-4bit`** | ~20 GB (Resident) | Optimized-phase brain (`ai-default` 12:00 UTC) | **The agentic tool-calling brain.** Selected by the agentic tool-calling benchmark: 100% valid tool calls and a clean 20-round multi-turn track. **Runs with thinking ON** — required, since the same weights degrade to plain-text pseudo tool-calls around round 6 with thinking off. Serves a router-side `repetition_penalty` (1.05) to kill a 4-bit repetition-loop pathology under sustained agentic load. |
-| **`Qwen3-Next-80B-A3B-Thinking-4bit`** | ~45 GB (On-demand) | Large-phase brain (`ai-default` 00:00 UTC) | **The larger reasoning brain in the daily rotation.** Loaded on demand only while `ai-default` maps to it; a first-class router alias. Thinking-native. See [`docs/BRAIN_ROTATION.md`](https://github.com/dryvist/ansible-proxmox-apps/blob/main/docs/BRAIN_ROTATION.md). |
+| **`Qwen3-Next-80B-A3B-Instruct-4bit`** | ~42 GB (Resident) | Resident Agentic | **The agentic tool-calling brain.** Selected as the agentic-bench winner for reliable multi-turn tool calling. **Runs with thinking ON** and carries sampling guardrails tuned for the quantized brain. |
+| **`Qwen3-Next-80B-A3B-Thinking-4bit`** | ~45 GB (On-demand) | On-demand Deep Escalation | **The larger reasoning brain, for deep-escalation work.** Loaded on demand for tasks that need a second-order pass — for example, catching a failure a smaller model only mentions in passing. Thinking-native. |
 | **`Qwen3-Coder-30B-A3B-4bit`** | 17.1 GB (Resident) | Resident Coding | **Best for boilerplate and Terraform/HCL generation.** Extremely strong at syntax, but carries a precision liability (e.g. minor query typos or dropping keys). Route templated codegen only. |
-| **`gpt-oss-120b-MXFP4-Q8`** | 63.3 GB (On-demand) | On-demand Reasoning | **Best for constrained prose and SPL query authoring.** Loaded on demand and idle-unloaded after 900s rather than held resident. Highly capable on complex reasoning, but weak at code review (confident false positives) and unfit as an agent brain (0% valid structured tool calls in the agentic benchmark). Requires high `max_tokens` for JSON. `reasoning_effort=low` by default. |
-| **`Qwen3.6-35B-A3B-4bit`** | 20.4 GB (Swap tier) | Swap-tier structured fallback | **The uniform-4bit structured-output baseline.** Passes strict JSON port-allocation tests but was superseded as the agent default by the OptiQ build above (uniform 4-bit degrades multi-turn tool calling earlier). Runs with thinking off by default. |
+| **`gpt-oss-120b-MXFP4-Q8`** | 63.3 GB (On-demand) | On-demand Reasoning | **Best for constrained prose and SPL query authoring.** Loaded on demand and idle-unloaded after 900s rather than held resident. Highly capable on complex reasoning, but weak at code review (confident false positives). **Held back from agent work by a serving-layer gap, not by the model:** it emits semantically correct calls in its own channel markup, the server ships no parser for that format, so `tool_calls` returns empty and the markup leaks into `content` (verified 2026-07-26/27). The missing parser landed as a declarative patch with a per-model toggle, and remains correct and worth having — the leakage is real and measured. The throughput argument once attached to it does not survive: see the re-measured figures below. See [Backends & tool calling](/local-llm/backends). Requires high `max_tokens` for JSON. `reasoning_effort=low` by default. |
+| **`Qwen3.6-35B-A3B-4bit`** | 20.4 GB (Swap tier) | Swap-tier structured fallback | **The uniform-4bit structured-output baseline.** Passes strict JSON port-allocation tests but was superseded as the agent default by the resident agentic brain above (uniform 4-bit degrades multi-turn tool calling earlier). Runs with thinking off by default. |
 | **`Qwen3.6-27B-4bit`** | 16.1 GB | Retired (2026-07-07) | **Retired after evals.** Decoded at 23–27 tok/s (4× slower than the 35B MoE), produced low-effort code reviews, and filled no unique capability niche. Removed from the swap tier. |
 
 ### Evaluation Methodology
@@ -33,6 +33,73 @@ These verdicts were established using a rigorous 5-task battery testing:
 
 ## Headline Performance & Tuning Outcomes
 
+This section has two tiers. The re-measured table directly below is verified.
+The tuning-outcome list after it is not, and is marked accordingly.
+
+### Re-measured in isolation
+
+Verified 2026-07-27. Every figure comes from a dedicated worker whose loaded
+weights were confirmed from its running command line, one model resident at a
+time, never through the proxy. The headline metric is **cumulative** — see
+[the metric definition](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only)
+and, just as important,
+[why it is meaningless without its regime](/tools/mlx-benchmarks#cumulative-is-meaningless-without-its-regime).
+
+Identical regime for all four rows: a unique filler prompt of 170–190 tokens
+with `cached_tokens=0` asserted per run, `max_tokens=300`, streaming with usage
+included. Cumulative is the median of three runs, range in brackets.
+
+| Model | Cumulative (median, range) | Decode | Prefill | TTFT | Tool calls |
+| --- | --- | --- | --- | --- | --- |
+| `Qwen3-Coder-30B-A3B-Instruct-4bit` **(incumbent)** | **163.4** (156.8–164.5) | 110.9 | 475–774 | 0.238–0.387 s | PASS |
+| `Qwen3.6-35B-A3B-4bit` | 140.9 (140.7–141.7) | 102.0 | 355–360 | 0.53 s | PASS |
+| `Qwen3-Next-80B-A3B-Instruct-4bit` | 112.1 (112.0–113.0) | 83.0 | 262 | 0.70 s | PASS |
+| `GLM-4.7-Flash-4bit` | 111.6 (111.2–111.9) | 79.2 | 399 | 0.43 s | PASS, unusable as default |
+
+All four return a genuine `tool_calls` array with `finish_reason: "tool_calls"`
+and correctly parsed arguments — no markup leakage on any of them.
+
+<Note>
+  **Decision recorded: the incumbent stays.**
+  `Qwen3-Coder-30B-A3B-Instruct-4bit` is fastest on cumulative, on decode, and
+  on prefill. No model change was made.
+
+  `GLM-4.7-Flash-4bit` is disqualified as a serving default: it never exits
+  thinking at `max_tokens=300` — zero answer characters across all three runs,
+  against 1022–1193 characters of reasoning. Fast, and answers nothing.
+</Note>
+
+<Warning>
+  **The earlier `gpt-oss-120b-MXFP4-Q8` figure (~52 cumulative / 40–43 decode)
+  is not comparable** — not merely superseded. It was taken in a different
+  regime (146-token prompt, `max_tokens=512`), and may have been measured
+  through the proxy while alias grafting was active, in which case it describes
+  a different model entirely. On decode — the most regime-stable measure — the
+  incumbent's 110.9 beats 40–43 by roughly **2.6x**. **The 120B is not the
+  throughput end state.** The earlier claim of a 4.5x lead in its favour is
+  withdrawn.
+</Warning>
+
+<Note>
+  **The "above 40 tok/s" bar is current operating guidance, not a permanent
+  gate.** It reflects what a single stationary host should serve interactively
+  *while single-stream stability is still being settled*. Concurrency rises once
+  concurrency-1 is solid, and a second backend is on the roadmap — both move the
+  bar. Do not cite it as a fixed requirement.
+</Note>
+
+### Earlier tuning outcomes
+
+<Warning>
+  **Every figure in this list is provisional until re-measured with
+  process-proven weights.** The swapping proxy was found serving a fallback
+  model's weights under other models' labels, which inflated one measurement by
+  7x. Any figure not taken from a worker whose command line was inspected is
+  under audit — see
+  [Verifying the instrument](/local-llm/verifying-the-instrument). These are
+  also decode-only rates, which is the wrong headline metric.
+</Warning>
+
 The serving stack is fully tuned and optimized in code (merged and active on the host), delivering significant speedups over the baseline stack:
 
 *   **gpt-oss-120b Decode Speed**: Tuned from 13.6 tok/s to **26.6–28.6 tok/s** (TTFT: 0.632s).
@@ -40,16 +107,13 @@ The serving stack is fully tuned and optimized in code (merged and active on the
 *   **Warmup and Preloads**: A dedicated warmup LaunchAgent (`mlx-warmup`) faults model weights into memory on boot, eliminating the 112-second cold-start penalty for the resident pair.
 *   **Extended Context Window**: The resident tool-calling brain runs with a raised request budget (**65,536** tokens) and a dedicated KV cache (`cache-memory-mb 16384`, `max-num-seqs 8`) to sustain long multi-turn tool-calling loops without truncation.
 *   **Long-generation timeout guard**: The server `--timeout` was raised to **3,600s**. A stock disconnect guard (300s) was aborting legitimate long agentic generations mid-stream (observed: a 6,320-token request aborted at 301.2s), which surfaced downstream as an "invalid tool call" with empty content. The guard now reaps only genuinely orphaned work; the client owns the real deadline (see [Self-hosted AI agent → Reliability](/autonomous-agents/hermes-agent)).
-*   **80B deep-escalation token budget**: The on-demand `Qwen3-Next-80B-A3B-Thinking-4bit` reasoning brain's multi-turn slip is token-budget truncation (`finish_reason: length`), not tool-format degradation. A direct A/B (thinking ON, 20 rounds) runs **20/20** at an **8,192**-token budget with `repetition_penalty 1.05` (18/20 without), and is inert at a tight 3,072 — so it carries the same rep-penalty guardrail as the resident brain. Directional single runs, not a maturity-counting result.
+*   **80B deep-escalation token budget**: The on-demand `Qwen3-Next-80B-A3B-Thinking-4bit` reasoning brain's multi-turn slip is token-budget truncation (`finish_reason: length`), not tool-format degradation. A direct A/B (thinking ON, 20 rounds) runs **20/20** at an **8,192**-token budget with `repetition_penalty 1.05` (18/20 without), and is inert at a tight 3,072. Directional single runs, not a maturity-counting result.
 *   **Active Parsers**: Native reasoning and tool-call parsers are active per model to separate thinking processes from content streams. The tool-calling brain uses the `hermes` tool-call parser with the `qwen3` reasoning parser — the `qwen3_coder` parser must not be used on a general (non-Coder) Qwen3.6, where it produces empty `function.name` calls.
 
 ---
 
 ## Observability Status
 
-A live audit of the logging and metrics pipeline conducted on 2026-07-07 highlights the program of record:
-
-*   **Active Ingestion**: Core network and host syslogs are streaming at volume (UniFi syslog ~14.6M events/7d; Linux syslog ~1.2M/7d).
-*   **Silent Pipelines**: Telemetries for local LLM runs (`claude-code` logs) were found silent, and six declared Splunk indexes (`llm`, `otel`, `openai`, `vscode`, `mac_perf`, `ai`) were empty. NetFlow export was also determined to be dead upstream due to untracked drift in the controller configuration.
-*   **Root Cause**: The observability pipeline routing tier (HAProxy + Cribl Edge/Stream pair) was left on a decommissioned VLAN during the recent estate network renumbering, rendering it unreachable from the client/AI VLANs.
-*   **Remediation**: The firewall rules and port routing fixes are tracked in `terraform-proxmox` under **Issue #579** (PR #578), which restores traffic via dedicated ports and logging rules.
+*   **Active Ingestion**: Core network and host syslogs stream at volume (UniFi syslog ~14.6M events/7d; Linux syslog ~1.2M/7d).
+*   **Routing**: The observability pipeline routing tier (HAProxy + Cribl Edge/Stream pair) reaches the client/AI VLANs over dedicated firewall ports and logging rules.
+*   **Known gap**: Telemetry for local LLM runs (`claude-code` logs) and NetFlow export are not yet confirmed flowing into their declared Splunk indexes (`llm`, `otel`, `openai`, `vscode`, `mac_perf`, `ai`) — verify against live index data before relying on them.

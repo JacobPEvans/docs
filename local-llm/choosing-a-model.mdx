@@ -1,0 +1,758 @@
+---
+title: "Choosing a local model on Apple Silicon"
+description: "A sourced reference for picking a local model: what the quantization evidence actually says, the tool-parser and reasoning-mode gates that override benchmark scores, KV cache as a budget line, and a procedure for verifying a model before you trust it."
+page_type: reference
+---
+
+> Every claim here carries a source and a date. Where the evidence is thin,
+> contested, or vendor-reported, the page says so instead of picking a side.
+
+This page trades confidence for citations: every conclusion below is sourced
+rather than asserted. Two hardware envelopes frame it:
+
+- **A single 128 GB Apple Silicon machine** — roughly 95 GiB usable for
+  inference. `hw.memsize` on a "128GB" Mac is exactly `137,438,953,472` bytes
+  (128 GiB), and the commonly quoted default GPU wired ceiling of ~75% of RAM
+  puts the cap near 96 GiB. That 75% figure is a rule of thumb, not a
+  guarantee — [measure the real ceiling](/local-llm/memory-ceilings) instead of
+  assuming it.
+- **Two clustered 128 GB machines** — roughly 190–200 GiB usable, at the cost
+  of an interconnect and a much more fragile serving path. See
+  [distributed serving](/local-llm/distributed).
+
+<Note>
+  Every fact below was checked on **2026-07-27**. The runtime landscape (parser
+  support, server flags, open issues) moves weekly; the paper landscape moves
+  yearly. Re-check the dated claims before relying on them.
+</Note>
+
+## Does a second machine buy accuracy? The evidence is contested
+
+The tempting framing is: a second machine doubles memory, so it buys either a
+much larger model at 4-bit or the same model at 8-bit. Which one is better is a
+real research question, and it is **not settled**.
+
+### The classic result: 4-bit is bit-for-bit optimal
+
+Dettmers and Zettlemoyer, ["The case for 4-bit precision: k-bit Inference Scaling
+Laws"](https://arxiv.org/abs/2212.09720) (ICML 2023, PMLR v202 pp. 7750–7774),
+ran "more than 35,000 experiments" across 19M–176B parameters and 3–8 bits. Their
+conclusion, verbatim:
+
+> our findings show that `{4-bit}` precision is almost universally optimal for
+> total model bits and zero-shot accuracy.
+
+At a fixed memory budget, take the larger model at 4-bit. This is the result the
+whole "second machine = bigger model" argument rests on.
+
+Two limits on it, both from the paper itself. The word is "**almost** universally
+optimal", and the metric is **zero-shot accuracy only**. The model families —
+BLOOM, OPT, NeoX/Pythia, GPT-2 — all predate Llama, so none of the heavily
+over-trained modern models this result is routinely applied to were in the sweep.
+
+### Refinements, not refutations
+
+Two later papers push the other way. Both are real results, and both are
+regularly stretched past what they measured.
+
+**Kumar et al., ["Scaling Laws for Precision"](https://arxiv.org/abs/2411.04330)
+(ICLR 2025 Oral)** finds that post-training-quantization damage grows with
+pretraining data: "the degradation introduced by post-training quantization
+increases as models are trained on more data, eventually making additional
+pretraining data actively harmful."
+
+The scope is the part to hold onto. From the paper: "We fit on over 465
+pretraining runs and validate our predictions on model sizes up to **1.7B
+parameters** trained on up to **26B tokens**." It also says "Our model sizes are
+relatively small because we train up to a very high D/N ≈ 10³ to study data
+scaling" and "We train only two model sizes at 26B due to compute constraints."
+Applying that to a 100–235B MoE trained on tens of trillions of tokens is
+**extrapolation across four orders of magnitude**, not a measurement.
+
+**Kim et al., ["Not All Bits Are Equal: Scale-Dependent Memory Optimization
+Strategies for Reasoning Models"](https://arxiv.org/abs/2510.10964)** is blunter.
+Verbatim:
+
+> Notably, the 8B model in 8-bit consistently outperforms the 14B model in 4-bit
+> (Figure 1) … Such findings are in direct contrast to Dettmers & Zettlemoyer
+> (2023).
+
+Four qualifications, all from the paper:
+
+1. **Not peer reviewed.** arXiv v1 only, dated 2025-10-13, no venue as of
+   2026-07-27.
+2. **Qwen3 only, dense only, ≤32B.** The sweep is Qwen3 at 0.6B / 1.7B / 4B / 8B
+   / 14B / 32B. No MoE variant appears anywhere. The 100–235B MoE tier this
+   argument gets applied to was never tested.
+3. **Two reasoning benchmarks only** — AIME25 and GPQA-Diamond.
+4. **The mechanism is KV cache, not weight damage.** The abstract says the
+   universal 4-bit prescription "fails for reasoning models, where the KV cache
+   rather than model size can dominate memory," and quantifies it: "a Qwen3-4B
+   model with 4-bit weights occupies 2.49 GB, but its KV cache for a 32k-token
+   generation requires 4.42 GB (≈1.8× the weights)." That mechanism is the
+   subject of [its own section below](#kv-cache-is-a-budget-line-not-a-rounding-error) —
+   and on a stack where you cannot quantize the cache at all, it bites harder.
+
+And the paper concedes the general case in its own next sentence: "However, we do
+find that for knowledge-intensive tasks, 4-bit quantization is broadly
+memory-optimal." Using this paper to argue against 4-bit for chat, coding, or
+zero-shot work inverts what it says.
+
+Pointing the same direction: Ouyang et al., ["Low-Bit Quantization Favors
+Undertrained LLMs: Scaling Laws for Quantized LLMs with 100T Training
+Tokens"](https://arxiv.org/abs/2411.17691) (ACL 2025) — "models with larger sizes
+or fewer training tokens experience less quantization-induced degradation (QiD) …
+whereas smaller models with extensive training tokens suffer significant QiD."
+
+### Counter-evidence, at exactly the scale the newer papers skipped
+
+Red Hat / Neural Magic, ["We ran over half a million evaluations on quantized
+LLMs"](https://developers.redhat.com/articles/2024/10/17/we-ran-over-half-million-evaluations-quantized-llms)
+(2024-10-17): "all quantization schemes — regardless of model size — recover over
+99% of the average score achieved by the unquantized baseline" on OpenLLM v1, and
+"close to 99% … with all models maintaining at least 96% recovery" on v2.
+Llama-3.1-405B was in the sweep.
+
+The article's prose gives no per-model 405B number; those are in the figures and
+in the peer-reviewed companion, ["'Give Me BF16 or Give Me Death'?
+Accuracy-Performance Trade-Offs in LLM
+Quantization"](https://arxiv.org/abs/2411.02355) (ACL 2025), which reports
+**405B W4A16-INT at 99.98% recovery on OpenLLM v1 and 98.9% on v2**, and an
+aggregate of "99.75% recovery" for 8-bit against "a competitive 99.36%" for
+W4A16-INT.
+
+<Warning>
+  **Label this vendor-reported.** Same five authors, same vendor, models the
+  authors produced and published, evaluated on their own calibration data and
+  harness fork. ACL acceptance is peer review, not replication, and **no
+  independent replication of these numbers was found** as of 2026-07-27. It is
+  still the only large-scale evidence at the 405B tier, which is exactly why it
+  matters — and exactly why it should not be the only thing you weigh.
+</Warning>
+
+### A different axis: aggregate scores hide answer flips
+
+Dutta et al., ["Accuracy is Not All You
+Need"](https://arxiv.org/abs/2407.09141) (NeurIPS 2024, Microsoft Research India)
+measures something a recovery percentage is structurally blind to. Verbatim:
+"while the difference in the aggregate accuracy metric … is negligible in most
+cases (≤2%), the actual % change in the answers, that we term **flips**, can be
+significant (≥5%)". On MMLU, "all other quantization schemes exhibit large number
+of flips (up to 13.6%)"; on GSM8k, "12–30%".
+
+Worked rows from their Table 5 (MMLU 5-shot, accuracy change / flip rate):
+Llama2-7b-chat SmoothQuant W8A8 = −2.36% / **13.62%**; Llama2-70b-chat BnB W4A4 =
+−0.78% / **5.65%**. The one scheme that escapes is GPTQ W8A16, at 0.26–0.60%
+flips — which is itself an 8-bit-weight result, and the single strongest piece of
+evidence in this set for 8-bit over 4-bit.
+
+Two models can score the same and disagree on one answer in eight. If your
+workload is a long agent loop where each step feeds the next, that is not the
+same model.
+
+### The honest conclusion
+
+**Contested. Do not treat either position as settled.**
+
+- The flip toward higher precision is demonstrated on **dense reasoning models at
+  or below 32B**, on two reasoning benchmarks, in a non-peer-reviewed preprint,
+  and is driven substantially by KV-cache-dominated memory rather than weight
+  damage.
+- It is **unverified at the 100–235B MoE tier** — no paper in this set tested a
+  MoE model at all.
+- The only large-scale evidence at the 405B tier points the **other** way, and it
+  is vendor-reported.
+- A separate line of evidence (flips) suggests aggregate-score recovery is the
+  wrong instrument for agentic work in the first place.
+
+What that means for the hardware question: a second machine buys **capacity you
+can otherwise not reach**, and capacity is a fact. Whether it buys **accuracy**
+depends on a research question nobody has answered at the scale you would be
+running. Justify the second machine on models that do not fit at all — and if you
+buy it to run the same model at 8-bit instead, measure the difference on your own
+workload rather than citing any of the papers above as settled.
+
+## What actually disqualifies a model
+
+Benchmark scores are the last thing to check, not the first. Two runtime gates
+kill a model outright regardless of how well it scores, and both are
+under-documented.
+
+### Gate 1 — Can the server emit structured tool calls?
+
+In `mlx-lm`, the tool-call parser is **not** something you choose on the command
+line. It is resolved at model load time, and if no parser matches, the server
+silently ignores the `tools` field.
+
+The exact mechanism, from
+[`mlx_lm/tokenizer_utils.py`](https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/tokenizer_utils.py)
+(verified on `main` @ `e5baded` and on the released `v0.31.3`):
+
+```python
+tool_parser_type = tokenizer_config.get(
+    "tool_parser_type", _infer_tool_parser(tokenizer.chat_template)
+)
+if tool_parser_type is not None:
+    tool_module = importlib.import_module(f"mlx_lm.tool_parsers.{tool_parser_type}")
+```
+
+Two things follow.
+
+**There is no `--tool-parser` flag.** `mlx_lm.server` defines 23 CLI flags and
+none of them selects a parser
+([`mlx_lm/server.py`](https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/server.py)).
+`_infer_tool_parser` is a string-match ladder over the model's chat template:
+it looks for `<minimax:tool_call>`, `<|tool_call>`, `<start_function_call>`,
+`<longcat_tool_call>`, `<arg_key>`, `<|tool_list_start|>`, `<tool_call>\n<function=`,
+`<|tool_calls_section_begin|>`, `[TOOL_CALLS]`, then a generic `<tool_call>`
+fallback. No match returns `None`, and the server sets `tool_parser = None`.
+
+**There is a per-model override, and it is undocumented.** The `tool_parser_type`
+key is read from the model's `tokenizer_config.json` and **wins over** template
+inference — `dict.get` only evaluates the fallback when the key is absent. It
+works on a stock `pip install mlx-lm` (present in `v0.31.3`, PyPI's latest as of
+2026-07-27). It is mentioned nowhere in the README or `SERVER.md`, so treat it as
+an implementation detail that can change without notice. Critically, it only
+lets you **pin to a parser that already exists** — the value becomes a module
+name under `mlx_lm.tool_parsers.`, and an unknown name raises `ModuleNotFoundError`.
+
+The parsers that exist, verified by directory listing on
+[`mlx_lm/tool_parsers/`](https://github.com/ml-explore/mlx-lm/tree/main/mlx_lm/tool_parsers)
+(2026-07-27), are exactly ten:
+
+| Parser module | Triggering marker in the chat template |
+| --- | --- |
+| `minimax_m2` | `<minimax:tool_call>` |
+| `gemma4` | `<\|tool_call>` and `<tool_call\|>` |
+| `function_gemma` | `<start_function_call>` |
+| `longcat` | `<longcat_tool_call>` |
+| `glm47` | `<arg_key>` |
+| `pythonic` | `<\|tool_list_start\|>` |
+| `qwen3_coder` | `<tool_call>` followed by `<function=` |
+| `kimi_k2` | `<\|tool_calls_section_begin\|>` |
+| `mistral` | `[TOOL_CALLS]` |
+| `json_tools` | generic `<tool_call>` + `tool_call.name` |
+
+**There is no `harmony`/`gpt-oss` parser and no DeepSeek parser.** A repo-wide
+grep for `deepseek`, `harmony`, and `gpt.oss` across the parser directory and the
+loader returns zero hits. The practical consequence is narrow and worth stating
+precisely: **`mlx_lm.server` will not return structured `tool_calls` for those
+model families** — not that the models are incapable. A client that reads the raw
+text stream and parses the tool syntax itself is unaffected. If your agent
+framework expects OpenAI-shaped `tool_calls`, that gap is the whole problem.
+
+The DeepSeek half of that may not last.
+[PR #1337](https://github.com/ml-explore/mlx-lm/pull/1337) adds a
+`deepseek_dsml` parser for DeepSeek-V4's native DSML tool-call format
+(+120/−0 across three files, opened 2026-05-31). It is **open and unmerged** as
+of 2026-07-27, so the table above is still the shipped reality — but check the
+directory listing yourself rather than trusting this paragraph's date.
+
+Open issues confirming the gpt-oss side, both still open on 2026-07-27:
+
+- [#613](https://github.com/ml-explore/mlx-lm/issues/613) — generation does not
+  stop at `<|call|>`, so gpt-oss keeps emitting instead of producing a tool call
+  (opened 2025-11-15).
+- [#875](https://github.com/ml-explore/mlx-lm/issues/875) — channel-token
+  leakage, tool calls stripped to empty responses, hallucinated tool execution;
+  root cause given as mlx-lm lacking special-token protocol awareness for
+  multi-channel models (opened 2026-02-11).
+
+<Warning>
+  A correction to a claim that circulates with these issue numbers: **neither
+  #613 nor #875 mentions DeepSeek.** Both are purely gpt-oss/harmony. The
+  DeepSeek gap is real but is established by the parser directory listing, not
+  by those issues.
+</Warning>
+
+The Qwen side has its own open gap.
+[#1293](https://github.com/ml-explore/mlx-lm/issues/1293) (opened 2026-05-21,
+still open, zero comments) reports Qwen 3.5 and Qwen 3.6 non-Coder models
+returning `content: ""` and no `tool_calls` because `_infer_tool_parser` does not
+match their templates, and asks for either more patterns or a `--tool-parser`
+flag. [PR #1295](https://github.com/ml-explore/mlx-lm/pull/1295) is frequently
+cited as the fix. **It is not.** It is +17/−0 across three files, still open, and
+its own body says:
+
+> This PR doesn't fix #1293 directly — the marker detection works correctly on
+> current `main` for the public mlx-community Qwen 3.5/3.6 variants — but it
+> would have prevented the issue from being filed.
+
+What it adds is an `INFO` log naming the detected parser at model load. That is
+genuinely useful — it converts a silent failure into a visible one — but it
+changes no behavior. Both the issue and the PR remain open.
+
+### Gate 2 — Can you control the reasoning mode?
+
+A model that never exits its thinking phase inside the output budget returns a
+`content` field of `""`. The work happened; you cannot use it. This is a
+documented, reproducible failure across several runtimes:
+
+- [`lmstudio-ai/mlx-engine#337`](https://github.com/lmstudio-ai/mlx-engine/issues/337)
+  (opened 2026-06-14, open on 2026-07-27) — "reasoning never terminates on MLX —
+  fills max_tokens with reasoning_content, empty content". The reported response
+  has `"content": ""`, ~16k tokens of `reasoning_content`, and
+  `"finish_reason": "length"`.
+- [`ollama/ollama#16583`](https://github.com/ollama/ollama/issues/16583)
+  (opened 2026-06-06, open) — "thinking mode consumes the entire `num_predict`
+  token budget with internal reasoning, leaving no tokens for the actual
+  response."
+- [`huggingface/transformers#42111`](https://github.com/huggingface/transformers/issues/42111)
+  (opened 2025-11-09, open) — the upstream gap: "No parameter limits the internal
+  reasoning segment when `enable_thinking=True`."
+
+vLLM addresses this with an explicit `thinking_token_budget` that forces the
+reasoning block closed; without it, "no explicit reasoning limit is applied
+beyond normal generation constraints such as `max_tokens`"
+([vLLM reasoning outputs](https://github.com/vllm-project/vllm/blob/main/docs/features/reasoning_outputs.md)).
+
+Models fall into three groups. Establish which one you have **before** you
+benchmark anything.
+
+| Behavior | How you control it | Verified example |
+| --- | --- | --- |
+| Thinking, switchable off | A chat-template variable | Qwen3's `enable_thinking`. The Qwen3-32B template emits an empty `<think>\n\n</think>` block when it is false; the card states that with `enable_thinking=False` the `/think` and `/no_think` soft switches stop working entirely. |
+| Non-thinking by design | Nothing to do | Qwen3-235B-A22B-Instruct-2507 and Qwen3-Coder-480B-A35B-Instruct both state: "This model supports only non-thinking mode and does not generate `<think></think>` blocks in its output." |
+| Mandatory, interleaved | Not controllable | MiniMax-M2. |
+
+The MiniMax case deserves care, because it is the one most often overstated. The
+M2 card says: "MiniMax-M2 is an interleaved thinking model. Therefore, when using
+it, it is important to retain the thinking content from the assistant's turns
+within the historical messages. … Do not remove the `<think>...</think>` part,
+otherwise, the model's performance will be negatively affected." The card never
+says thinking *cannot* be disabled — the evidence is mechanical: M2's
+`chat_template.jinja` contains zero occurrences of `enable_thinking`, and the
+generation prompt emits the opening `<think>` unconditionally. There is no switch
+to throw.
+
+<Note>
+  **Do not generalize that to the vendor.** MiniMax-M3 (published 2026-07-23)
+  ships an explicit `thinking` parameter with `enabled`, `adaptive`, and
+  `disabled` modes. MiniMax-M2.1 quietly dropped the interleaved-thinking warning
+  from its card while keeping the same un-switchable template. Check the specific
+  release, not the family.
+
+  The claim that preserving interleaved thinking is *why* these models score well
+  on agentic benchmarks is **weaker than usually stated**: the M2 card only warns
+  that performance "will be negatively affected" by removing it. No sentence on
+  the card attributes its own benchmark numbers to interleaved thinking. Treat
+  the causal version as plausible and unproven.
+</Note>
+
+To disable thinking where a switch exists, pass the template argument. Note the
+flag name differs between entry points, verified on `main` @ `e5baded` and
+`v0.31.3`:
+
+| Entry point | Flag |
+| --- | --- |
+| `mlx_lm.server`, `mlx_lm.evaluate` | `--chat-template-args '{"enable_thinking":false}'` |
+| `mlx_lm.generate`, `mlx_lm.chat` | `--chat-template-config` (same idea, different name and type) |
+
+Shelling out to `mlx_lm.generate --chat-template-args ...` fails with an argparse
+error. Neither flag appears in the README or `SERVER.md` — the `enable_thinking`
+example exists only inside the argparse help string. The server also accepts
+per-request `chat_template_kwargs` in the request body, which override the CLI
+default.
+
+## KV cache is a budget line, not a rounding error
+
+Weights are not the whole memory budget. For standard multi-head or grouped-query
+attention:
+
+```text
+bytes per token = 2 × layers × kv_heads × head_dim × bytes_per_element
+```
+
+The leading `2` counts the key cache and the value cache. **It is already in the
+formula — do not apply it a second time.** That is the single most common error
+here, and it silently doubles every figure downstream.
+
+Worked example with Llama-3.3-70B (`num_hidden_layers` 80,
+`num_key_value_heads` 8, `head_dim` 128, `max_position_embeddings` 131072 —
+values identical across three independent mirrors of the config, since Meta's own
+repo is gated). **At bf16, so `bytes_per_element` = 2:**
+
+```text
+2 × 80 layers × 8 kv_heads × 128 head_dim × 2 bytes
+    = 327,680 bytes/token = 0.3125 MiB/token   (bf16)
+327,680 × 131,072 tokens
+    = 42,949,672,960 bytes = exactly 40 GiB    (bf16)
+```
+
+Forty GiB of cache, on top of the weights, on a machine with ~95 GiB usable. That
+is the line item people forget.
+
+### Architecture changes this enormously
+
+Two published results set the range. DeepSeek-V2's multi-head latent attention
+(MLA) compresses the KV cache into a low-rank latent vector; the paper reports a
+**93.3% KV cache reduction** versus DeepSeek 67B
+([arXiv:2405.04434](https://arxiv.org/abs/2405.04434)). The Jamba paper's Table 1
+puts KV cache at 256K context at 128 GB for LLaMA-2, 32 GB for Mistral and
+Mixtral, and **4 GB for Jamba** ([arXiv:2403.19887](https://arxiv.org/abs/2403.19887)).
+
+Computed directly from each model's published `config.json` on 2026-07-27, **all
+at bf16**, the same spread shows up in shipping models:
+
+| Model | Attention layers | `kv_heads` | `head_dim` | Bytes/token (bf16) |
+| --- | --- | --- | --- | --- |
+| GLM-4.7 | 92 of 92 | 8 | 128 | 376,832 B = 0.359 MiB |
+| Llama-3.3-70B | 80 of 80 | 8 | 128 | 327,680 B = 0.313 MiB |
+| MiniMax-M2.7 | 62 of 62 | 8 | 128 | 253,952 B = 0.242 MiB |
+| Qwen3-Coder-Next | **12 of 48** | 2 | 256 | 24,576 B = 0.023 MiB |
+
+That is a **15× spread**, and only one of the four numbers is explained by
+parameter count. Qwen3-Coder-Next carries `full_attention_interval: 4` in its
+config: only every fourth layer is full attention, so **12** layers enter the
+formula, not 48. Miss that key and you overestimate its cache by 4×.
+
+<Warning>
+  **Recompute this from `config.json` yourself. Do not trust any published KV
+  table, including this one.**
+
+  Applying the K+V factor of `2` twice — once in the formula and once again by
+  hand — silently doubles a row, and a review pass alone does not catch it.
+
+  The cheapest check that catches it: **pick a row you trust and scale by the
+  ratio.** GLM-4.7 and Llama-3.3-70B have identical `kv_heads` and `head_dim`, so
+  GLM's figure must be exactly `80 / 92` of Llama's — 0.3125 × 92/80 = 0.359 MiB.
+  It is. MiniMax-M2.7 has *fewer* layers than Llama with the same head geometry,
+  so its figure **must** come out below 0.3125 MiB; any answer above that is
+  arithmetically impossible, no matter how confidently it is stated.
+</Warning>
+
+### Quantizing the cache: available on generate, not on the server
+
+`mlx_lm.generate` exposes `--kv-bits`, `--kv-group-size`, and
+`--quantized-kv-start`. `mlx_lm.server` exposes **none of them** — a
+case-insensitive grep of the 1,870-line `server.py` for `kv.bits|kv.group|quantized.kv|quantize`
+returns zero matches, so the server has no KV-quantization code path at all, not
+just missing flags.
+
+[Issue #1043](https://github.com/ml-explore/mlx-lm/issues/1043) ("Add KV cache
+quantization support to server", opened 2026-03-22, still open on 2026-07-27)
+tracks it. Its single comment makes the gap look structural rather than cosmetic:
+the server runs a different generator (`BatchGenerator` → `GenerationBatch.step()`)
+that never quantizes, so adding three argparse lines would not be enough. No
+maintainer has responded.
+
+### Treat 2-bit KV as unsupported, not as measured-bad
+
+`mlx_lm/models/cache.py` quantizes the cache with `mx.quantize` in its default
+group-wise **affine** mode, applied identically to keys and values along the last
+axis — which, given the cache layout `(B, n_kv_heads, num_steps, head_dim)`, is
+the head dimension. Each group of channels within a single token shares a scale
+and bias. There is no axis permutation anywhere in the file.
+
+That matters because [KIVI](https://arxiv.org/abs/2402.02750) (ICML 2024), the
+result that made 2-bit KV cache viable, is built on an **asymmetry**: keys should
+be quantized **per-channel** and values **per-token**, because key caches carry
+large-magnitude outliers concentrated in specific channels while value caches do
+not. mlx-lm is symmetric where KIVI is asymmetric.
+
+So the honest position is: 2-bit KV in this stack is **unsupported in practice**,
+not measured and found wanting. Nobody has published a fair 2-bit KV measurement
+against a KIVI-style implementation here.
+
+## Quantization methods, ranked by evidence
+
+### Natively low-precision releases are not post-hoc quantization
+
+A model *released* at MXFP4, FP8, or through quantization-aware training was
+trained or post-trained at that precision. Running it there is faithful to the
+published weights — there is no third-party lossy step in between.
+
+The `openai/gpt-oss-120b` card states it directly (verified verbatim,
+2026-07-27):
+
+> **MXFP4 quantization:** The models were post-trained with MXFP4 quantization of
+> the MoE weights, making `gpt-oss-120b` run on a single 80GB GPU (like NVIDIA
+> H100 or AMD MI300X) and the `gpt-oss-20b` model run within 16GB of memory. All
+> evals were performed with the same MXFP4 quantization.
+
+That second sentence is the important one. The published benchmark numbers *are*
+the MXFP4 numbers. There is no higher-precision baseline being degraded.
+
+A **bf16 re-upload of such a model is a lossless upcast that adds no
+information** — it is only useful for stacks with no MXFP4 kernels. The cost is
+measurable. Verified via the Hub API on 2026-07-27:
+
+| Artifact | Summed safetensors |
+| --- | --- |
+| `openai/gpt-oss-120b` (official, MXFP4 MoE) | 60.77 GiB |
+| `mlx-community/gpt-oss-120b-mxfp4-bf16` (MXFP4 MoE kept) | 60.77 GiB |
+| `unsloth/gpt-oss-120b-BF16` (full bf16 upcast) | 217.61 GiB |
+
+3.6× the bytes for the same information — and the difference between fitting on
+one 128 GB machine and not fitting on two.
+
+<Warning>
+  MXFP4 is not automatically the right choice on Apple Metal. Some MoE matmuls
+  are dramatically slower there because dequantization overhead dominates
+  ([MLX #3402](https://github.com/ml-explore/mlx/issues/3402)). Measure
+  throughput before standardizing on it.
+</Warning>
+
+### The learned methods MLX actually documents
+
+[`mlx_lm/LEARNED_QUANTS.md`](https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/LEARNED_QUANTS.md)
+documents four: **DWQ** (distilled weight quantization), **AWQ**
+(activation-aware), **GPTQ**, and **dynamic quantization** (per-layer sensitivity
+estimation, then higher precision for sensitive layers). Its guidance on where
+DWQ works, verbatim:
+
+> - DWQ works best distilling to lower precision, anywhere from 2-bit to 4-bit models.
+> - Distilling 16-bit precision to 8-bit and even 6-bit often doesn't work well.
+>   The loss starts out so low that it's difficult to reduce further.
+
+<Warning>
+  **The official docs contain no quantitative quality claim.** Read end to end on
+  2026-07-27: no perplexity table, no accuracy delta, no "effective bits" figure,
+  no method-versus-method comparison. Every number in the document is a CLI
+  default or a configuration envelope — including the dynamic-quant note that
+  "with the default parameters a BPW in the range `[4.5, 5.5]` is achievable",
+  which describes size, not quality. Its quality statements are qualitative and
+  unquantified ("DWQ takes longer but typically yields better results", "the
+  8-bit models are usually as good as 16-bit precision models"), and the
+  `mlx_lm.evaluate` section tells you to measure quality yourself.
+
+  So any "DWQ 4-bit performs like N-bit" figure you have seen came from somewhere
+  else. Cite that somewhere else, and label it single-source and unreplicated
+  unless you can point to an independent replication.
+</Warning>
+
+Note also that the Hub carries 6-bit and 8-bit DWQ artifacts despite that
+guidance — published availability is not an endorsement by the method's own docs.
+
+### A branded name is not an evaluation
+
+Ask two questions of any branded quantization label:
+
+1. **Is the method documented by a primary source?** Not a model card
+   describing results — a specification of what the method does.
+2. **Has anyone outside the vendor measured it?** On a harness the vendor does
+   not control, against a size-matched baseline.
+
+If the answer to either is no, the label is a name, not a result.
+
+There is a subtler trap. **A "4bit"-named artifact is rarely 4.0 bits per
+weight**, and two artifacts with the same label can differ materially in size —
+which makes "beats plain 4-bit" partly true by construction. Group-wise affine
+quantization stores an fp16 scale and an fp16 bias per group, so:
+
+```text
+effective bits per weight ≈ bits + 32 / group_size
+```
+
+Measured on the Hub, 2026-07-27, for the same base model. The
+[Qwen3-30B-A3B-Instruct-2507 card](https://huggingface.co/Qwen/Qwen3-30B-A3B-Instruct-2507)
+states "Number of Parameters: 30.5B in total and 3.3B activated"; the bf16
+artifact lands at 16.02 bits per weight against that figure, which corroborates
+both the count and the method:
+
+| Artifact | `config.json` quantization | Summed safetensors | Effective bits/weight |
+| --- | --- | --- | --- |
+| `mlx-community/…-2507-4bit` | `bits: 4`, `group_size: 64`, 48 modules at 8-bit | 16.00 GiB | 4.51 |
+| `mlx-community/…-2507-4bit-DWQ` | `bits: 4`, `group_size: 32`, no overrides | 17.77 GiB | 5.01 |
+| `mlx-community/…-2507-bf16` | none | 56.87 GiB | 16.02 |
+
+Both are labelled "4bit". The DWQ artifact is **11% larger**, and the formula
+above predicts exactly that (4 + 32/64 = 4.5 versus 4 + 32/32 = 5.0). Nobody is
+being deceptive — `LEARNED_QUANTS.md` explicitly recommends the smaller group
+size, because "decreasing the quantization group size … doubles the number of
+tunable parameters and can work much better." But it does mean a head-to-head
+between those two files is **not a size-matched comparison**, and part of any
+quality gain is bought with bytes. Compare at equal bytes, or say that you did
+not.
+
+### Degradation is task-stratified, and perplexity hides it
+
+Reasoning and multi-step agentic accuracy degrade **before** perplexity or
+aggregate benchmarks show it. Two results say so from different directions.
+
+Dong et al., ["Can Compressed LLMs Truly Act? An Empirical Evaluation of Agentic
+Capabilities in LLM Compression"](https://arxiv.org/abs/2505.19433) (ICML 2025
+poster) — the paper that introduces the **ACBench** benchmark — reports:
+
+> 4-bit quantization preserves workflow generation and tool use (1%–3% drop) but
+> degrades real-world application accuracy by 10%–15%.
+
+Its scope, stated plainly because it constrains how far the number travels:
+models from Gemma-2B up to Qwen2.5-32B; quantization by **GPTQ, AWQ, and
+SmoothQuant** (plus Magnitude, SparseGPT, and Wanda pruning). **No MoE models
+appear in the paper at all, and neither does MLX** — so nothing here transfers to
+an MLX affine quant or a MoE architecture without an assumption the paper does not
+support. The 1–3% / 10–15% figures are also abstract-level roll-ups; individual
+results are far worse, including a compressed Qwen2.5-3B showing "catastrophic
+performance collapse in GSM8K reasoning (61% → 11%)".
+
+The flip result from Dutta et al. above is the second direction: aggregate
+accuracy can move less than 1% while one answer in eight changes. Both point at
+the same practical rule — **measure the task you actually run**, not a leaderboard
+average, and not perplexity.
+
+## A selection procedure
+
+Model lists rot in weeks. A procedure does not.
+
+<Steps>
+  <Step title="Get the true size from the Hub API, never from the parameter count">
+    Estimating bytes from parameters is how people end up 3× wrong. Query the
+    Hub with `?blobs=true` and sum the `safetensors` sizes, then **check the sum
+    against the index's declared `total_size`**.
+
+    ```bash
+    curl -s "https://huggingface.co/api/models/<owner>/<repo>?blobs=true" \
+      | jq '[.siblings[] | select(.rfilename | endswith(".safetensors"))
+             | {f: .rfilename, size}]'
+    curl -s "https://huggingface.co/<owner>/<repo>/raw/main/model.safetensors.index.json" \
+      | jq .metadata.total_size
+    ```
+
+    Both checks are load-bearing, and `openai/gpt-oss-120b` shows why. Summing
+    *every* `.safetensors` file in that repo gives 121.5 GiB — but the repo holds
+    two complete copies of the same weights in different shard layouts (15 files
+    at the root, 7 more under `original/`), each 60.77 GiB, and both index files
+    declare `total_size: 65248815744` (60.77 GiB). Sum blindly and you double it.
+
+    Shard counts lie too: those root shards are numbered `00000`–`00014` — that
+    is **15 files** in a naming scheme that says `of-00014`. Trust the declared
+    `total_size`, not the filename arithmetic. (Summed file bytes run slightly
+    above `total_size` — 77,440 bytes here — because file bytes include
+    safetensors headers.)
+  </Step>
+
+  <Step title="Check the tool-parser gate">
+    Confirm the model's chat template hits one of the ten markers above, or that
+    a `tool_parser_type` key pins it to an existing parser. If neither, the
+    server will not return structured `tool_calls` no matter how the model
+    scores.
+  </Step>
+
+  <Step title="Check reasoning-mode control">
+    Establish whether thinking can be disabled, is absent by design, or is
+    mandatory. A model that cannot finish thinking inside your token budget
+    returns nothing usable.
+  </Step>
+
+  <Step title="Compute the KV budget for your real target context">
+    Read the model's own `config.json` and use the formula above with its actual
+    `num_key_value_heads` and `head_dim`, at the context length you will really
+    run — not the advertised maximum. Add it to the weight size before deciding
+    anything fits.
+
+    Three things to get right, in the order they bite:
+
+    - **Check for a hybrid-attention key** — `full_attention_interval` or
+      `layer_types`. Only full-attention layers hold a KV cache. Counting all of
+      them is the largest single error available here.
+    - **State the precision on the line.** `bytes_per_element` is 2 at bf16/fp16,
+      1 at fp8. A figure with no stated precision is not a figure.
+    - **Ratio-check against a model you already trust.** Same `kv_heads` and
+      `head_dim` means the result scales exactly with layer count — an answer that
+      breaks that ratio is wrong regardless of how it was derived.
+  </Step>
+
+  <Step title="Prefer natively-low-precision or QAT releases">
+    A model released at MXFP4, FP8, or through quantization-aware training is
+    faithful to its published weights at that precision. A post-hoc quantization
+    of a bf16 release is a lossy transformation someone else performed, usually
+    without publishing an evaluation.
+  </Step>
+
+  <Step title="Treat every benchmark number as vendor-claimed until shown otherwise">
+    Ask who ran the eval, on whose harness, against which baseline, at which
+    exact artifact size. A number without those four answers is marketing.
+  </Step>
+
+  <Step title="Verify what is actually loaded from the serving process">
+    Not from the API — a server can answer with a different model than you asked
+    for and return HTTP 200 with your requested name echoed back. The next
+    section is why that happens; the one after it is how to check.
+  </Step>
+</Steps>
+
+## A server can answer with a different model than you asked for
+
+The last step is the one readers skip, because it sounds like paranoia until you
+know the failure exists. It is real, it is silent, and it is invisible from the
+API surface.
+
+**The `model` field in an OpenAI-compatible response is echoed from your
+request.** It is never read from the loaded checkpoint, so it cannot confirm what
+served you — it only confirms what you asked for. In `mlx_lm/server.py` the
+handler sets `self.requested_model = self.body.get("model", "default_model")` and
+then emits `"model": self.requested_model` in the response body. Ask for a model
+that is not loaded and you can still get HTTP 200 carrying that model's name.
+
+Two distinct mechanisms produce it, and neither leaves a trace in the response:
+
+| Mechanism | What happens |
+| --- | --- |
+| **Alias grafting on collapse** | A swap-style proxy collapses to serving one model. The other catalogue entries move to a disabled list — but **their physical model ids are grafted onto the surviving entry as aliases**, so "every known name still gets an answer". Requesting a disabled model's id resolves, to the surviving model's weights. |
+| **Fallback to whatever is served** | A router alias points at a model the backend does not serve. Instead of erroring, the request falls through to whatever **is** loaded. Nothing is misconfigured in a way you can look at: the alias is spelled correctly, the backend is healthy, the response is well-formed. |
+
+<Warning>
+  Observed cost, **in one deployment** — treat the shape as general and the
+  specifics as one estate's experience:
+
+  - Benchmark results reached a **public dataset attributing one model's
+    throughput to two others**, with error up to **~7×** before the substitution
+    was caught. Because several grafted ids resolved to the same resident, one
+    wrong measurement became several wrong published rows.
+  - A production agent ran on a **different model than its configuration named**,
+    for an unknown period.
+
+  Neither was visible from the API. Every request succeeded.
+</Warning>
+
+**One asymmetry is worth knowing.** A dedicated single-model worker *is*
+trustworthy in a narrow sense: it resolves the id it was asked for and returns
+404 on one it does not hold. But that is a guarantee about **the worker**, never
+about a proxy in front of it. Put a proxy in the path and the same 200 with the
+same label proves nothing again.
+
+**The design rule that prevents the whole class:** resolve names exactly or
+return an explicit error. Never alias a different model's physical id — a role
+alias like `default` or `coding` asserts intent and is fine to repoint, but a
+physical id asserts identity, and repointing it is a silent lie. Never fall back
+silently. And **log the resolved physical model alongside the requested name**,
+because this failure is defined by being invisible; one log line per load makes
+the entire class greppable.
+
+[Verifying the instrument](/local-llm/verifying-the-instrument) is the full
+treatment, including the measurement post-mortem and the two checks that look
+like verification but verify nothing.
+
+### How to verify what a server is actually running
+
+Resolve the listening port to a process and read its command line
+(verified on macOS, 2026-07-27):
+
+```bash
+PID=$(lsof -nP -iTCP:<port> -sTCP:LISTEN -t | head -1)
+ps -o command= -p "$PID"
+```
+
+The command line names the artifact path the worker actually opened. On Linux,
+`ss -lptn 'sport = :<port>'` then `tr '\0' ' ' < /proc/<pid>/cmdline` does the
+same job. Cross-check that path's `config.json` for the real `quantization` block
+and the real `num_key_value_heads` — that is ground truth; the API response is
+not.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Models and quantization" icon="layer-group" href="/local-llm/models-and-quantization">
+    The working posture this page supplies the evidence for.
+  </Card>
+  <Card title="Backends and tool calling" icon="server" href="/local-llm/backends">
+    The serving layer the tool-parser gate lives in.
+  </Card>
+  <Card title="Memory ceilings" icon="gauge" href="/local-llm/memory-ceilings">
+    Why "usable memory" is a measured number, not 75% of RAM.
+  </Card>
+  <Card title="Distributed serving" icon="network-wired" href="/local-llm/distributed">
+    What the second machine actually costs to run.
+  </Card>
+</CardGroup>

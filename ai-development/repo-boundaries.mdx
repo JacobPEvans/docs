@@ -18,7 +18,7 @@ The AI coding setup behind this site is split across three repositories on purpo
 | [`claude-code-plugins`](/ai-development/claude-code-plugins) | Plugins | Slash commands, skills, agents, hooks, the plugin marketplace |
 | [`docs`](/introduction) | Documentation | This site — architecture, narrative, public-facing diagrams |
 
-The rules repo is vendor-agnostic — Claude Code, Gemini CLI, GitHub Copilot, and Codex all read the same files. The plugins repo is Claude-Code-specific because plugins are a Claude Code concept. The docs repo is for humans (and any AI that wants to understand the system).
+The rules repo is vendor-agnostic — Claude Code, Antigravity, GitHub Copilot, and Codex all read the same files. The plugins repo is Claude-Code-specific because plugins are a Claude Code concept. The docs repo is for humans (and any AI that wants to understand the system).
 
 Tool *permissions* (the allow / ask / deny lists) are not in any of these repos — they live in the Nix layer at [`nix-claude-code`](/nix/nix-claude-code) and are rendered into each tool's settings by `nix-ai`.
 

@@ -6,7 +6,7 @@ page_type: explanation
 
 The goal: file a GitHub Issue, grab coffee, come back to a PR that's been implemented, tested, and reviewed by multiple AI models — just waiting for a thumbs up. Not fully there yet, but close enough to be dangerous.
 
-Humans decide *what* to build. AI agents handle the *how*. Automation runs the boring parts. A human gives the final sign-off. Claude, Gemini, Copilot, and local MLX models each do what they're best at — the right model for the right job instead of throwing everything at one.
+Humans decide *what* to build. AI agents handle the *how*. Automation runs the boring parts. A human gives the final sign-off. Claude, Antigravity, Copilot, and local MLX models each do what they're best at — the right model for the right job instead of throwing everything at one.
 
 ## The pipeline
 
@@ -18,7 +18,7 @@ Humans decide *what* to build. AI agents handle the *how*. Automation runs the b
 flowchart LR
   H1([Roadmap])
   H2([Issue])
-  A1([Claude / Gemini])
+  A1([Claude / Antigravity])
   A2([Code])
   T1([CI])
   T2([Lint])
@@ -48,27 +48,27 @@ Green nodes are human, coral are AI, ink are automation. The role is the node co
 
 ## The model-routing philosophy
 
-Every model has a sweet spot:
+The routing is opinionated, not magic: every model has a sweet spot, and clear
+rules in `~/CLAUDE.md` and `AGENTS.md` say *which* model to use *when* — the
+strongest model for multi-file refactors and deep reasoning, the cheap one for
+line-level completion, local inference for anything not worth cloud tokens.
 
-- **Claude** — best at multi-file refactors, deep reasoning, agentic loops. The default for non-trivial implementation work.
-- **Gemini** — great for second opinions, code review, broad context understanding.
-- **GitHub Copilot** — fastest for line-level completions inside the editor. Cheap for high-volume routine work.
-- **Local MLX** — Apple Silicon native inference for typo fixes, quick edits, and "I don't want to burn cloud tokens on this" tasks. The serving stack, tuning, and model strategy live under [Local LLM](/local-llm/overview).
+The reasoning behind that split, and how it is governed once several agents share
+one endpoint, lives on [Model routing](/ai-development/model-routing). The serving
+stack that runs the local tiers is under [Local LLM](/local-llm/overview).
 
-The routing is opinionated, not magic: clear rules in `~/CLAUDE.md` and `AGENTS.md` say *which* model to use *when*.
+## Local AI gateway (LiteLLM)
 
-## Local AI gateway (Bifrost)
-
-[Bifrost](/tools/bifrost) is the OpenAI-compatible HTTP gateway that sits between every AI tool on the workstation and whichever provider eventually answers the call. It exposes `http://localhost:30080/v1/chat/completions` and fans out to OpenAI, Gemini, OpenRouter, and the local MLX server based on the task class.
+The [LiteLLM router pool](/local-llm/homelab-gpu) is the single endpoint for the shared local inference fabric on the homelab. Workstation AI tools reach cloud providers (OpenAI, Gemini, OpenRouter) directly, using each tool's own native credentials — the router pool isn't in that path.
 
 Tools resolve task classes (Research, Coding, Review, Pre-commit) to a current model at call time — never hardcode model identifiers in committed config. When `localOnlyMode` is enabled, every request routes exclusively to the local MLX inference server on port 11434.
 
-See [Bifrost](/tools/bifrost) for routing conventions, local-only mode details, and provider capabilities.
+See [Homelab GPU](/local-llm/homelab-gpu) for routing conventions, local-only mode details, and provider capabilities.
 
 ### Priority order
 
 1. **Anthropic official** — Claude Code plugins, skills, patterns
-2. **Bifrost AI gateway** — multi-provider routing at `localhost:30080`
+2. **LiteLLM router** — local, on-estate inference routing across the router pool
 3. **Personal or custom** — only when no alternative exists
 
 ## Repos that power this pipeline

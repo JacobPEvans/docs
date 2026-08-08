@@ -1,6 +1,6 @@
 ---
 title: "Assistant rules"
-description: "Vendor-agnostic framework for AI coding workflows. One set of rules, every AI tool reads them: Claude, Gemini, Copilot, Codex."
+description: "Vendor-agnostic framework for AI coding workflows. One set of rules, every AI tool reads them: Claude, Antigravity, Copilot, Codex."
 page_type: repo
 ---
 
@@ -10,7 +10,7 @@ import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 
 <RepoMeta language="Shell" status="active" lastActive="this week" repoUrl="https://github.com/JacobPEvans/ai-assistant-instructions" />
 
-`ai-assistant-instructions` is the rules and conventions layer for every AI coding tool in the portfolio. The same files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.) are sourced from this repo so Claude Code, Gemini CLI, GitHub Copilot, and Codex all behave consistently.
+`ai-assistant-instructions` is the rules and conventions layer for every AI coding tool in the portfolio. The same files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, etc.) are sourced from this repo so Claude Code, the Antigravity (`agy`) CLI, GitHub Copilot, and Codex all behave consistently.
 
 ## What it does
 
@@ -20,7 +20,7 @@ import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 - Owns the **model-routing policy** — when to reach for Claude vs Gemini vs Copilot vs local MLX
 - Owns the **tool-use rules** — Read over `cat`, Edit over `sed`, Bash for shell-only
 - Owns the git-flow branching/merge model and `git-flow-next` tool usage — [`agentsmd/rules/git-flow.md`](https://github.com/dryvist/ai-assistant-instructions/blob/main/agentsmd/rules/git-flow.md); the human-readable version lives in [Branch conventions](/conventions/branch-conventions) and [PR conventions](/conventions/pr-conventions)
-- Owns AI-runtime concerns: skill execution semantics, subagent typing, Bifrost-routing details
+- Owns AI-runtime concerns: skill execution semantics, subagent typing, LiteLLM-routing details
 - Owns the **autonomy-resilience rules** hardened after the 2026-07 overnight runs —
   [`agentsmd/rules/subagent-resilience.md`](https://github.com/dryvist/ai-assistant-instructions/blob/main/agentsmd/rules/subagent-resilience.md)
   (probe before fan-out, bounded concurrency, mandatory solo fallback),
@@ -37,10 +37,9 @@ import { RepoMeta, RepoFit } from "/snippets/repo-summary.mdx";
 
 Cross-repo writing standards that humans also need to read — commit conventions, no-scripts, diagramming, CI/CD policy, OpenTofu check placement, Nix package placement, scrubbed values — live on this docs site. See [Conventions](/conventions/overview) for the full set.
 
-Situational agent guidance that once lived here as always-loaded rules — pre-commit architecture, the Nix tool policy,
-shared-workflow org references — now ships as on-demand skills in
-[claude-code-plugins](/ai-development/claude-code-plugins), keeping the per-session footprint focused on voice, tool
-use, skill-execution integrity, and repository-local routing.
+Situational agent guidance — pre-commit architecture, the Nix tool policy, shared-workflow org references — ships as
+on-demand skills in [claude-code-plugins](/ai-development/claude-code-plugins) instead of always-loaded rules, keeping
+the per-session footprint focused on voice, tool use, skill-execution integrity, and repository-local routing.
 
 The [default development loop](/architecture/ai-pipeline) is intentionally lightweight: gather enough context, choose the
 simplest verifiable path, implement the smallest correct change, and report only the result plus verification. PRD-heavy,
@@ -97,7 +96,7 @@ The same convention applies symmetrically to `GEMINI.md` and any future vendor-s
 
 | Read by | Consumed by |
 | --- | --- |
-| Claude Code, Gemini CLI, GitHub Copilot, Codex | [Claude Code plugins](/ai-development/claude-code-plugins) |
+| Claude Code, Antigravity (`agy`), GitHub Copilot, Codex | [Claude Code plugins](/ai-development/claude-code-plugins) |
 
 <RepoFit>
 The "rules of engagement." Every AI workflow elsewhere in the portfolio assumes this repo's content is in scope.

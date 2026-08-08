@@ -11,7 +11,7 @@ page_type: overview
 "Local LLM" here means two distinct stacks that answer to the same OpenAI-shaped
 API, plus the strategy that decides which one runs what. Neither is an agent.
 Both are *just the model plus a serving stack* — the agent layer (Claude Code,
-Gemini, the routines) lives above them and calls in over HTTP.
+Antigravity, the routines) lives above them and calls in over HTTP.
 
 - **The client laptops** — `vllm-mlx` workers behind `llama-swap` on a
   laptop-class M4 Max, one resident model, tuned to coexist with a working
@@ -72,6 +72,26 @@ at boot and eliminate the 112s cold start (pending one host rebuild).
 `Qwen3.6-27B` was evaluated and retired (2026-07-07). The full report is documented in `nix-darwin`
 [MACOS-LLM-PERFORMANCE-TUNING-REPORT.md](https://github.com/dryvist/nix-darwin/blob/main/docs/MACOS-LLM-PERFORMANCE-TUNING-REPORT.md).
 
+<Warning>
+  **Every figure above is provisional until re-measured with process-proven
+  weights.** The swapping proxy was caught serving the resident model's weights
+  under every other model's label — single-model collapse grafts each disabled
+  model's *physical identifier* onto the surviving entry as an alias — which
+  inflated one measurement by 7x. The concurrency aggregate is not a general
+  result either: on a large MoE model, four streams measured *worse* than one
+  (verified 2026-07-26/27). Read
+  [Verifying the instrument](/local-llm/verifying-the-instrument) before citing
+  any number on this site.
+
+  They are also quoted on the wrong metric, and without a regime. The headline
+  figure is **cumulative** tokens/second — prompt plus completion over total
+  wall-clock — because decode-only rates hide real prefill gains; but cumulative
+  is meaningless without its prompt size, so both must be published together.
+  See [the metric definition](/tools/mlx-benchmarks#the-headline-metric-is-cumulative-not-decode-only),
+  [why the regime matters](/tools/mlx-benchmarks#cumulative-is-meaningless-without-its-regime),
+  and the [re-measured figures](/local-llm/mac-studio#re-measured-in-isolation).
+</Warning>
+
 Note that this does **not** turn two machines into one 256 GB pool — Apple
 Silicon unified memory can't be merged across a cable.
 The separate, still-gated direction is **combined capacity by sharding**: a
@@ -91,9 +111,10 @@ and it remains measurement-gated — covered honestly in
   read as `~/.config/ai-stack/registry.json`. Docs describe the *strategy*; the
   *current id* is a registry value, never hard-coded here. See
   [Models & quantization](/local-llm/models-and-quantization).
-- **Measure, don't claim.** No tuning change ships on a marketing number — only a
-  measured one. Throughput and quality come from the public
-  [benchmark dataset](/tools/mlx-benchmarks), not vibes.
+- **Measure, don't claim — then verify the instrument.** No tuning change ships
+  on a marketing number, only a measured one. But a measurement is only as good
+  as proof of which weights the process loaded, so every number carries that
+  provenance. See [Verifying the instrument](/local-llm/verifying-the-instrument).
 - **MoE for throughput.** A sparse mixture-of-experts model with a few billion
   active parameters decodes far faster than a dense model of the same total
   size — the lever that makes a big model usable on a laptop.
@@ -122,6 +143,9 @@ and it remains measurement-gated — covered honestly in
   <Card title="Homelab GPU" icon="server" href="/local-llm/homelab-gpu">
     The always-on, LAN-shared model on a dedicated GPU — a different machine, a bigger model.
   </Card>
+  <Card title="Verifying the instrument" icon="magnifying-glass-chart" href="/local-llm/verifying-the-instrument">
+    How a server serves the wrong weights silently, the one check that catches it, and the 7x error it hid.
+  </Card>
   <Card title="Benchmarking" icon="gauge-high" href="/tools/mlx-benchmarks">
     The reproducible harness and public dataset that every tuning decision is measured against.
   </Card>
@@ -134,7 +158,7 @@ and it remains measurement-gated — covered honestly in
     Packages the inference stack — the `vllm-mlx` LaunchAgent, `llama-swap`, the MLX modules, and the AI-stack registry.
   </Card>
   <Card title="AI development pipeline" icon="diagram-project" href="/architecture/ai-pipeline">
-    Where local models sit in the bigger picture — routed alongside Claude, Gemini, and Copilot by task class.
+    Where local models sit in the bigger picture — routed alongside Claude, Antigravity, and Copilot by task class.
   </Card>
   <Card title="Local AI isolation" icon="shield-halved" href="/security/local-ai-isolation">
     Why a local model and the agents calling it still can't read protected secrets.

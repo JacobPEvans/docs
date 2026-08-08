@@ -55,7 +55,7 @@ Each per-project directory is independent: its own state object lives in its own
 
 ## The bootstrap module
 
-The Terraform code lives in [`dryvist/terraform-aws-template`][repo] (Apache-2.0, public). Each per-project bootstrap directory is a small root module that wires the published module to the project's values:
+The Terraform code lives in [`dryvist/tofu-aws-templates`][repo] (Apache-2.0, public). Each per-project bootstrap directory is a small root module that wires the published module to the project's values:
 
 ```hcl
 terraform {
@@ -86,11 +86,11 @@ provider "aws" {
 }
 
 module "state_backend" {
-  source = "git::https://github.com/dryvist/terraform-aws-template.git?ref=v0.1.0"
+  source = "git::https://github.com/dryvist/tofu-aws-templates.git?ref=v0.1.0"
 
   project        = "proxmox"
   github_org     = "<github-org>"
-  github_repo    = "terraform-proxmox"
+  github_repo    = "tofu-proxmox"
   branch_pattern = "main"
 
   operator_user_arns = [
@@ -108,8 +108,8 @@ Full input / output reference and the list of underlying AWS resources live in t
 
 The S3-native lock object (`<project>/terraform.tfstate.tflock`) is just another S3 object under the same prefix as state — no separate IAM permission required, no DynamoDB table.
 
-[repo]: https://github.com/dryvist/terraform-aws-template
-[readme]: https://github.com/dryvist/terraform-aws-template/blob/main/README.md
+[repo]: https://github.com/dryvist/tofu-aws-templates
+[readme]: https://github.com/dryvist/tofu-aws-templates/blob/main/README.md
 
 ## Bootstrap the chicken-and-egg
 
