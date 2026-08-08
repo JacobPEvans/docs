@@ -75,8 +75,10 @@ doesn't parse. Two things cause most of it:
   **Per-model tool-call verification is a required gate, not a nice-to-have.**
   Before a model is used for agent work, send a real tool-calling request to
   `/v1/chat/completions` *through the deployed server* and confirm a populated
-  `tool_calls` array — across several turns, not one. A model that cannot emit a
-  structured tool call through this server is disqualified for agent work no
+  `tool_calls` array — across several turns, not one. Read `content` on the same
+  response: if it holds anything that looks like call markup, the parser is
+  missing, no matter how healthy the HTTP status looks. A model that cannot emit
+  a structured tool call through this server is disqualified for agent work no
   matter how good it is, because the agent never sees the call.
 </Note>
 

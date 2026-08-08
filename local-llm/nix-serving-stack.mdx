@@ -151,6 +151,52 @@ strategy; the live id is always a registry value, never hard-coded.
 For the packaging view of these repos, see [AI tooling](/nix/nix-ai) and
 [macOS host](/nix/nix-darwin).
 
+## Why the launch agents run under the platform shell
+
+Every shell payload in this stack is launched by the **operating system's own
+`/bin/bash`**, not the newer shell the package manager provides. That looks like
+a mistake and is not. It is the design, and it constrains how the scripts get
+written.
+
+macOS keys its privacy grants — Local Network access, in particular — to a
+binary's **code-signing identity**. A package-manager binary's identity is
+derived from its content hash, so it changes every time the package set moves
+forward. Grant the permission today, bump the dependency tomorrow, and the OS
+sees an unknown binary and silently revokes the grant. Every prior approval
+evaporates on an unrelated upgrade. The platform shell's identity is stable
+across every upgrade the machine will ever take, so a grant made once holds.
+
+<Warning>
+  The consequence is a hard authoring rule: **every shipped shell script must
+  parse under the platform shell**, which on macOS is bash 3.2 — a release
+  predating most of what modern shell tutorials assume. This is not a style
+  preference. A script using a newer construct does not fail loudly at deploy
+  time; it fails at runtime, in a background job, in a way that reads as a
+  hardware or network problem.
+</Warning>
+
+Two real failures, both found and fixed on 2026-07-27, show the shape:
+
+| Construct | What bash 3.2 does with it | How it surfaced |
+| --- | --- | --- |
+| `case` inside a `$( … )` command substitution | The parser ends the substitution at the first `)` in a case pattern | A link watcher's carrier detection silently returned garbage. The two-machine cluster could not self-form for **weeks**, and the symptom looked exactly like an unplugged cable. |
+| `mapfile` (a bash 4 builtin) | Not a builtin — the call fails and the target array stays empty | An orphan-process reaper found nothing, every time. Stale workers held their ports, and requests came back as `HTTP 200` with a zero-byte body. |
+
+Both failures had been chased down the wrong path for a long time, because
+neither produced an error anyone saw. The durable fix is not the two patches —
+it is the **mutation-tested compatibility check** now in the build: it parses
+every shipped script under the platform shell, and the test suite proves the
+check itself fails when a violating construct is introduced. A guard that has
+never been shown to fail is not a guard.
+
+One consequence is worth naming here, because this page is where the swapping
+proxy is described: a response from any endpoint above cannot tell you which
+weights answered it. The `model` field is echoed from the request, and a
+`/v1/models` listing enumerates the local cache rather than what is loaded. Read
+the model argument off the listening process before trusting any number taken
+through these ports — see
+[Verifying the instrument](/local-llm/verifying-the-instrument).
+
 ## The memory-safety control plane
 
 Two memory behaviours ride on one flag, over a wired ceiling that must move with
