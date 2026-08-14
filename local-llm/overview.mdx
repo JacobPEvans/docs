@@ -75,9 +75,12 @@ at boot and eliminate the 112s cold start (pending one host rebuild).
 <Warning>
   **Every figure above is provisional until re-measured with process-proven
   weights.** The swapping proxy was caught serving the resident model's weights
-  under every other model's label — single-model collapse grafts each disabled
-  model's *physical identifier* onto the surviving entry as an alias — which
-  inflated one measurement by 7x. The concurrency aggregate is not a general
+  under every other model's label — single-model collapse *used to* graft each
+  disabled model's *physical identifier* onto the surviving entry as an alias —
+  which inflated one measurement by 7x. **That defect is fixed: a disabled
+  model's physical id is no longer aliased and now returns HTTP 404.** The
+  figures taken while it was live remain provisional regardless. The
+  concurrency aggregate is not a general
   result either: on a large MoE model, four streams measured *worse* than one
   (verified 2026-07-26/27). Read
   [Verifying the instrument](/local-llm/verifying-the-instrument) before citing

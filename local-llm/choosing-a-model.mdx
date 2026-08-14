@@ -689,7 +689,7 @@ Two distinct mechanisms produce it, and neither leaves a trace in the response:
 
 | Mechanism | What happens |
 | --- | --- |
-| **Alias grafting on collapse** | A swap-style proxy collapses to serving one model. The other catalogue entries move to a disabled list — but **their physical model ids are grafted onto the surviving entry as aliases**, so "every known name still gets an answer". Requesting a disabled model's id resolves, to the surviving model's weights. |
+| **Alias grafting on collapse** *(fixed — kept as a failure pattern to recognise)* | A swap-style proxy collapses to serving one model. The other catalogue entries move to a disabled list — and in the affected implementation **their physical model ids were grafted onto the surviving entry as aliases**, so "every known name still gets an answer": requesting a disabled model's id resolved, to the surviving model's weights. The fix is that a disabled id **returns 404** instead. The pattern is worth recognising in any proxy that collapses a catalogue, because it fails with a 200 and the requested name echoed back. |
 | **Fallback to whatever is served** | A router alias points at a model the backend does not serve. Instead of erroring, the request falls through to whatever **is** loaded. Nothing is misconfigured in a way you can look at: the alias is spelled correctly, the backend is healthy, the response is well-formed. |
 
 <Warning>
