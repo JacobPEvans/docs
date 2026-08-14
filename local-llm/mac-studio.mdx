@@ -6,19 +6,31 @@ page_type: explanation
 
 > A stationary desktop-class Apple Silicon host serves the large-tier models to the entire LAN, allowing client laptops to delegate heavy or structured reasoning workloads without draining local battery or memory.
 
-The stationary Mac Studio (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host. It runs a multi-model stack that holds two models resident in memory concurrently to eliminate the overhead of swapping multi-gigabyte weights. A swap-tier allows loading larger fallbacks on demand.
+The stationary Mac Studio (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host.
+
+## What is actually loaded
+
+Read from the serving host on 2026-08-14 (`/v1/models` and `/running` on its llama-swap proxy), because this is the section that goes stale fastest and a roster nobody re-measured is worse than no roster at all:
+
+| Model | State |
+| --- | --- |
+| `Qwen3.6-35B-A3B-4bit` | **resident**, thinking off, 65,536-token request budget |
+| `Qwen3.5-9B-MLX-4bit` | on-demand swap tier, idle-unloads after 900 s |
+| everything else below | **not servable** — a request naming one returns 404 |
+
+That last row is the easiest thing on this page to misread. The host runs a single-model posture in which exactly one physical id is servable and every other catalogued model is deliberately demoted, so the registry below records models that were **evaluated**, not models that are **loaded**. A two-brain posture — the 35B for routine work alongside a dense model for deliberate work — is in flight; this section gets re-read from the host when it lands rather than edited ahead of it.
 
 ## Model Registry & Verdicts
 
-The homelab runs a curated set of local models on the Mac Studio. Through systematic dogfooding and structured evaluations, each model has been assigned specific roles and capability boundaries:
+The homelab runs a curated set of local models on the Mac Studio. Through systematic dogfooding and structured evaluations, each model has been assigned specific roles and capability boundaries. **The size/config column records the profile each model was evaluated under — see the section above for what is deployed.**
 
 | Model | Size & Config | Role | Verdict / Best Used For |
 | --- | --- | --- | --- |
-| **`Qwen3-Next-80B-A3B-Instruct-4bit`** | ~42 GB (Resident) | Resident Agentic | **The agentic tool-calling brain.** Selected as the agentic-bench winner for reliable multi-turn tool calling. **Runs with thinking ON** and carries sampling guardrails tuned for the quantized brain. |
-| **`Qwen3-Next-80B-A3B-Thinking-4bit`** | ~45 GB (On-demand) | On-demand Deep Escalation | **The larger reasoning brain, for deep-escalation work.** Loaded on demand for tasks that need a second-order pass — for example, catching a failure a smaller model only mentions in passing. Thinking-native. |
-| **`Qwen3-Coder-30B-A3B-4bit`** | 17.1 GB (Resident) | Resident Coding | **Best for boilerplate and Terraform/HCL generation.** Extremely strong at syntax, but carries a precision liability (e.g. minor query typos or dropping keys). Route templated codegen only. |
-| **`gpt-oss-120b-MXFP4-Q8`** | 63.3 GB (On-demand) | On-demand Reasoning | **Best for constrained prose and SPL query authoring.** Loaded on demand and idle-unloaded after 900s rather than held resident. Highly capable on complex reasoning, but weak at code review (confident false positives). **Held back from agent work by a serving-layer gap, not by the model:** it emits semantically correct calls in its own channel markup, the server ships no parser for that format, so `tool_calls` returns empty and the markup leaks into `content` (verified 2026-07-26/27). The missing parser landed as a declarative patch with a per-model toggle, and remains correct and worth having — the leakage is real and measured. The throughput argument once attached to it does not survive: see the re-measured figures below. See [Backends & tool calling](/local-llm/backends). Requires high `max_tokens` for JSON. `reasoning_effort=low` by default. |
-| **`Qwen3.6-35B-A3B-4bit`** | 20.4 GB (Swap tier) | Swap-tier structured fallback | **The uniform-4bit structured-output baseline.** Passes strict JSON port-allocation tests but was superseded as the agent default by the resident agentic brain above (uniform 4-bit degrades multi-turn tool calling earlier). Runs with thinking off by default. |
+| **`Qwen3-Next-80B-A3B-Instruct-4bit`** | ~42 GB | Agentic | **The agentic tool-calling brain.** Selected as the agentic-bench winner for reliable multi-turn tool calling. **Runs with thinking ON** and carries sampling guardrails tuned for the quantized brain. |
+| **`Qwen3-Next-80B-A3B-Thinking-4bit`** | ~45 GB | Deep escalation | **The larger reasoning brain, for deep-escalation work.** Loaded on demand for tasks that need a second-order pass — for example, catching a failure a smaller model only mentions in passing. Thinking-native. |
+| **`Qwen3-Coder-30B-A3B-4bit`** | 17.1 GB | Coding | **Best for boilerplate and Terraform/HCL generation.** Extremely strong at syntax, but carries a precision liability (e.g. minor query typos or dropping keys). Route templated codegen only. |
+| **`gpt-oss-120b-MXFP4-Q8`** | 63.3 GB | Reasoning | **Best for constrained prose and SPL query authoring.** Loaded on demand and idle-unloaded after 900s rather than held resident. Highly capable on complex reasoning, but weak at code review (confident false positives). **Held back from agent work by a serving-layer gap, not by the model:** it emits semantically correct calls in its own channel markup, the server ships no parser for that format, so `tool_calls` returns empty and the markup leaks into `content` (verified 2026-07-26/27). The missing parser landed as a declarative patch with a per-model toggle, and remains correct and worth having — the leakage is real and measured. The throughput argument once attached to it does not survive: see the re-measured figures below. See [Backends & tool calling](/local-llm/backends). Requires high `max_tokens` for JSON. `reasoning_effort=low` by default. |
+| **`Qwen3.6-35B-A3B-4bit`** | 20.4 GB | **Deployed resident** | **The uniform-4bit structured-output baseline, and what the host actually serves.** Passes strict JSON port-allocation tests. It was once judged inferior to the 80B agentic brain on multi-turn tool calling (uniform 4-bit degrades earlier), but it later won the 2026-07-27 standalone throughput bench outright while being the smallest candidate, and it is the model in memory today. Thinking off by default. |
 | **`Qwen3.6-27B-4bit`** | 16.1 GB | Retired (2026-07-07) | **Retired after evals.** Decoded at 23–27 tok/s (4× slower than the 35B MoE), produced low-effort code reviews, and filled no unique capability niche. Removed from the swap tier. |
 
 ### Evaluation Methodology
