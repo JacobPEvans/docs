@@ -19,7 +19,8 @@ reusable packaging public and environment topology private.
 
 ## What it does
 
-- Packages Claude Code, the Antigravity (`agy`) CLI, GitHub Copilot CLI, and assorted AI tooling
+- Packages Claude Code, the Antigravity (`agy`) CLI, GitHub Copilot CLI, Cribl and Splunk operator CLIs, and assorted AI tooling
+- Tracks the operator CLI sources through the flake lock, so consumers can gate their installation to workstation hosts
 - Provides MLX module derivations for Apple Silicon
 - Pins 15+ MCP servers and exposes them as reusable Nix attributes
 - Exports an overlay so `nix-darwin` and `nix-home` can include AI tools without duplicating logic
