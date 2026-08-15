@@ -82,7 +82,8 @@ The historical tuning report is in `nix-darwin`
   weights under every other model's label — single-model collapse grafted each
   disabled model's *physical identifier* onto the surviving entry as an alias —
   which inflated one measurement by 7x. That defect is fixed: a disabled
-  model's physical id no longer gets aliased, and now returns HTTP 404. The
+  model's physical id no longer gets aliased, and now returns HTTP 404 — but
+  figures measured while it was live remain provisional regardless. The
   concurrency aggregate is not a general
   result either: on a large MoE model, four streams measured *worse* than one
   (verified 2026-07-26/27). Read
