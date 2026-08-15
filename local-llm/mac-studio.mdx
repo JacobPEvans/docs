@@ -79,10 +79,9 @@ and correctly parsed arguments — no markup leakage on any of them.
   on prefill. No model change was made.
 
   **Superseded 2026-08-15.** That decision optimised for throughput. The host
-  is now the intelligence tier, so it optimises for answer quality instead, and
-  neither this incumbent nor the 80B is loaded. See
-  [What is actually loaded](#what-is-actually-loaded). The measurements below
-  stand — only the decision they fed has changed.
+  is now the intelligence tier, so it optimises for answer quality instead. See
+  [What is actually loaded](#what-is-actually-loaded) for the active deployment state.
+  The measurements below stand — only the decision they fed has changed.
 
   `GLM-4.7-Flash-4bit` is disqualified as a serving default: it never exits
   thinking at `max_tokens=300` — zero answer characters across all three runs,
