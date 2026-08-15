@@ -78,11 +78,12 @@ The historical tuning report is in `nix-darwin`
 
 <Warning>
   **Why those figures were pulled, and why you should distrust any number that
-  lacks its provenance.** The swapping proxy was caught serving the resident
-  model's weights under every other model's label — single-model collapse
-  grafts each disabled model's *physical identifier* onto the surviving entry
-  as an alias — which
-  inflated one measurement by 7x. The concurrency aggregate is not a general
+  lacks its provenance.** The swapping proxy once served the resident model's
+  weights under every other model's label — single-model collapse grafted each
+  disabled model's *physical identifier* onto the surviving entry as an alias —
+  which inflated one measurement by 7x. That defect is fixed: a disabled
+  model's physical id no longer gets aliased, and now returns HTTP 404. The
+  concurrency aggregate is not a general
   result either: on a large MoE model, four streams measured *worse* than one
   (verified 2026-07-26/27). Read
   [Verifying the instrument](/local-llm/verifying-the-instrument) before citing

@@ -14,17 +14,25 @@ specifics as one estate's experience and the shape as general.
 
 ### Mechanism A — a collapse that grafts physical ids as aliases
 
+<Note>
+  This mechanism has since been **fixed** in the estate it was observed in: the
+  grafting is banned in the config generator, and a disabled model's physical id
+  now returns **HTTP 404**. It is kept here because the *shape* generalises to
+  any proxy that collapses a catalogue, and because it fails in the worst
+  possible way — a 200 with the requested name echoed back.
+</Note>
+
 A proxy config generator collapses a multi-model catalog down to **one resident
 model** to fit a memory budget. Every other entry is disabled — kept intact,
 each still carrying its own correct launch command, simply not served. Then the
-generator does one more thing: it grafts every disabled model's **physical
+generator did one more thing: it grafted every disabled model's **physical
 identifier** onto the surviving entry as an **alias**, so that "any caller
 naming any known model still gets an answer."
 
-That is the defect. The surviving entry now answers to names that do not
-identify it. Ask for a 120B model, get the 30B resident — HTTP 200, and a
-response labelled with the 120B you asked for. In one captured config, 11 of 12
-model ids resolved to the same resident.
+That is the defect. The surviving entry answers to names that do not identify
+it. Ask for a 120B model, get the 30B resident — HTTP 200, and a response
+labelled with the 120B you asked for. In one captured config, 11 of 12 model ids
+resolved to the same resident.
 
 The distinction the generator lost is between two kinds of name:
 
