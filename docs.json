@@ -134,8 +134,10 @@
                 "pages": [
                   "infrastructure/repos/tofu-proxmox",
                   "infrastructure/repos/tofu-unifi",
+                  "infrastructure/repos/tofu-github",
                   "infrastructure/repos/ansible-proxmox",
                   "infrastructure/repos/ansible-proxmox-apps",
+                  "infrastructure/repos/ansible-proxmox-ai",
                   "infrastructure/repos/orbstack-kubernetes"
                 ]
               },
