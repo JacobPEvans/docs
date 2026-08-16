@@ -88,4 +88,4 @@ Cribl pipelines de-duplicate, parse flow records, and aggregate by tuple before 
 
 ## DR posture
 
-Splunk Cloud failover is provisioned via [tofu-aws](https://github.com/dryvist/tofu-aws) — AWS resources (EC2, S3, Route 53) that come up cold and accept the same HEC traffic if the home cluster is offline. Cribl Edge routes can be flipped to point at the AWS endpoint with a single config change.
+Splunk Cloud failover is provisioned via `tofu-aws` (private) — AWS resources (EC2, S3, Route 53) that come up cold and accept the same HEC traffic if the home cluster is offline. Cribl Edge routes can be flipped to point at the AWS endpoint with a single config change.

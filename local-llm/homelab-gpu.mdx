@@ -13,9 +13,11 @@ The name resolves to a load-balanced pool of three stateless
 [LiteLLM](https://docs.litellm.ai/) routers. The routers hold the model table
 and fan requests out by tier:
 
-- **Large tier** — the biggest models (`gpt-oss-120b`, `qwen3-coder`) run on an
-  Apple-Silicon machine behind an authenticated TLS gate; the router holds the
-  bearer token, consumers never see it.
+- **Large tier** — the biggest models run on an Apple-Silicon machine behind an
+  authenticated TLS gate; the router holds the bearer token, consumers never
+  see it. Which models are actually resident changes as the roster is
+  re-evaluated — see [What is actually loaded](/local-llm/mac-studio#what-is-actually-loaded)
+  for the current, dated roster rather than a name hard-coded here.
 - **Fast tier** — small, quick models (`qwen3-4b` and the
   `embeddings` model) on a Radeon RX 6800 in a privileged LXC, served by
   [llama-swap](https://github.com/mostlygeek/llama-swap) fronting llama.cpp's
@@ -85,7 +87,7 @@ with the GPU passed through (`/dev/kfd` + `/dev/dri`); models live on a 120 GB
 fast-pool volume. The LXCs, firewall groups, and the Traefik pool entries are
 provisioned by [tofu-proxmox](/infrastructure/repos/tofu-proxmox); llama.cpp,
 llama-swap, the routers, and Open WebUI are configured by
-[ansible-proxmox-apps](/infrastructure/repos/ansible-proxmox-apps).
+[ansible-proxmox-ai](/infrastructure/repos/ansible-proxmox-ai).
 
 <Note>
   **This is not the same "local AI" as the
@@ -123,7 +125,7 @@ from openai import OpenAI
 
 client = OpenAI(base_url="https://llm.example.net/v1", api_key=llm_router_key)
 resp = client.chat.completions.create(
-    model="gpt-oss-120b",  # or qwen3-coder, qwen3-4b, embeddings…
+    model="qwen3-4b",  # or embeddings, or a large-tier alias — see /v1/models below
     messages=[{"role": "user", "content": "hello"}],
 )
 print(resp.choices[0].message.content)
@@ -139,7 +141,7 @@ authentication for you.
   <Card title="tofu-proxmox" icon="cubes" href="/infrastructure/repos/tofu-proxmox">
     Provisions the LXCs, GPU passthrough, firewall groups, and the Traefik router pool.
   </Card>
-  <Card title="ansible-proxmox-apps" icon="screwdriver-wrench" href="/infrastructure/repos/ansible-proxmox-apps">
+  <Card title="ansible-proxmox-ai" icon="screwdriver-wrench" href="/infrastructure/repos/ansible-proxmox-ai">
     Installs llama.cpp + llama-swap, the LiteLLM routers, and Open WebUI.
   </Card>
   <Card title="LXC vs Docker" icon="boxes-stacked" href="/infrastructure/lxc-vs-docker">
