@@ -17,7 +17,7 @@ OpenTofu / Terraform / Ansible that builds and configures the homelab.
 | [tofu-proxmox](https://github.com/dryvist/tofu-proxmox) | Proxmox VM/LXC provisioning; the deployment + constants source of truth | [hub](/infrastructure/repos/tofu-proxmox) |
 | [ansible-proxmox](https://github.com/dryvist/ansible-proxmox) | Host tuning, ZFS pools, replication, monitoring | [hub](/infrastructure/repos/ansible-proxmox) |
 | [ansible-proxmox-apps](https://github.com/dryvist/ansible-proxmox-apps) | App roles — Cribl, HAProxy, and the rest | [hub](/infrastructure/repos/ansible-proxmox-apps) |
-| [tofu-unifi](https://github.com/dryvist/tofu-unifi) | UniFi network-as-code — VLANs, firewall, WLANs, VPN | [hub](/infrastructure/repos/tofu-unifi) |
+| `tofu-unifi` (private) | UniFi network-as-code — VLANs, firewall, WLANs, VPN | [hub](/infrastructure/repos/tofu-unifi) |
 | [orbstack-kubernetes](https://github.com/dryvist/orbstack-kubernetes) | Local K8s monitoring stack (OTEL, Cribl) | [hub](/infrastructure/repos/orbstack-kubernetes) |
 | [tofu-runs-on](https://github.com/dryvist/tofu-runs-on) | Self-hosted GitHub Actions runners on AWS spot | [hub](/infrastructure/cicd/tofu-runs-on) |
 | [tofu-aws-templates](https://github.com/dryvist/tofu-aws-templates) | Per-project AWS state-backend bootstrap template | [OpenTofu on AWS](/infrastructure/tofu-aws/overview) |
@@ -85,6 +85,7 @@ Templates and standalone tools.
 | [docs](https://github.com/JacobPEvans/docs) | This site — the public architecture map | — |
 | [.github](https://github.com/dryvist/.github) | Org community-health files + the README template | — |
 | [tofu-github](https://github.com/dryvist/tofu-github) | Declarative GitHub repo/org configuration in OpenTofu | — |
+| [secrets-sync](https://github.com/JacobPEvans/secrets-sync) | Distributes Doppler-held secrets and variables to GitHub Actions | [hub](/security/secrets-sync) |
 
 <Note>
   Private repos (the live homelab, real network config, schemas) are catalogued on the gated [dryvist site](https://docs.dryvist.com), not here.
