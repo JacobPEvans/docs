@@ -29,10 +29,14 @@ This site is a personal documentation portfolio, but typo fixes, broken-link rep
 
 ## Content boundaries
 
-This site documents public repositories only. Per the secrets policy, do not add:
+This site documents public repositories in depth. A private repository may be
+named in an index or "related repos" list — bare name, no link, labeled
+`(private)` — when its existence is needed for the map to make sense. Do not
+add:
 
+- A link to a private repository (it 404s or redirects for every visitor)
+- Any description of a private repository's contents, internals, or topology
 - Real internal IP addresses or hostnames
-- References to private repositories
 - Credentials, tokens, or other sensitive data
 
 When in doubt, ask in an issue before opening a PR.
