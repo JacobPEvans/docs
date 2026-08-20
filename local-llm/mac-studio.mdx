@@ -6,7 +6,7 @@ page_type: explanation
 
 > A stationary desktop-class Apple Silicon host serves the large-tier models to the entire LAN, allowing client laptops to delegate heavy or structured reasoning workloads without draining local battery or memory.
 
-The stationary Mac Studio (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host.
+The stationary Mac Studio (M4 Max, 128 GB Unified Memory) acts as the always-on `llm-large` serving host. It also runs the org's **mac-fleet** GitHub Actions runner (Linux ARM64 inside an Apple container; GitHub still names the group `llm-runners`). That runner is live and idle when no job is queued. It is not `macos-latest`, and it is not a laptop runner. See [CI/CD overview](/infrastructure/cicd/overview).
 
 ## What is actually loaded
 
