@@ -61,7 +61,17 @@ Secrets are pre-injected into the Claude Code session via Nix + direnv (SOPS-dec
 
 ## CI and the self-hosted runner
 
-E2E tests run on a self-hosted ARM64 runner: a stock `myoung34/github-runner:ubuntu-jammy` container with `EPHEMERAL=1`, managed by `docker/actions-runner/docker-compose.yml`. A macOS LaunchAgent invokes `make runner-foreground` for boot persistence. `make runner-doctor` is the deep health check. The runner requires the Mac powered on with OrbStack running and Doppler authenticated.
+E2E tests run on a self-hosted ARM64 runner **on the laptop** while it is
+powered on: a stock `myoung34/github-runner:ubuntu-jammy` container with
+`EPHEMERAL=1`, managed by `docker/actions-runner/docker-compose.yml`. A macOS
+LaunchAgent invokes `make runner-foreground` for boot persistence.
+`make runner-doctor` is the deep health check. The runner requires OrbStack
+running and Doppler authenticated.
+
+That laptop runner is **not** the always-on Mac Studio fleet (**mac-fleet**,
+GitHub group still named `llm-runners`). Studio jobs are Linux ARM64 inside
+an Apple container; pin them with `apple-container` so they cannot land here.
+See [CI/CD overview](/infrastructure/cicd/overview).
 
 ## Related repos
 
