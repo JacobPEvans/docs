@@ -17,21 +17,34 @@ and fan requests out by tier:
   authenticated TLS gate; the router holds the bearer token, consumers never
   see it. Which models are actually resident changes as the roster is
   re-evaluated — see [What is actually loaded](/local-llm/mac-studio#what-is-actually-loaded)
-  for the current, dated roster rather than a name hard-coded here.
+  for the current, dated roster rather than a name hard-coded here. This is
+  the primary tier: the router prefers it whenever it's up.
 - **Fast tier** — small, quick models (`qwen3-4b` and the
   `embeddings` model) on a Radeon RX 6800 in a privileged LXC, served by
   [llama-swap](https://github.com/mostlygeek/llama-swap) fronting llama.cpp's
-  `llama-server` (ROCm build, models co-resident).
+  `llama-server` (ROCm build, models co-resident). It now also backs up the
+  large tier as a fallback leg — **fail-fast, not retrying**: it accepts a
+  request immediately if it has capacity or rejects immediately if it
+  doesn't, so a busy fast tier can never stall a caller waiting on a retry or
+  backoff.
 - **CPU standby** — the same llama.cpp lineup, CPU-only, on a node that sleeps
-  most of the day; cold capacity if the GPU host is out.
+  most of the day; cold capacity if both GPU tiers are out.
+- **A free hosted tier**, reached through a stable handle whose underlying
+  model lives in the provider's own configuration rather than in anything
+  committed here — see
+  [the stable-handle pattern](/ai-development/model-routing#the-stable-handle-pattern-for-a-tier-you-dont-control).
+  It sits behind every local tier in the fallback order: local capacity is
+  always tried first.
+- **Paid providers**, reached only by explicit model identifier, never as an
+  implicit fallback — see
+  [Delegation: the cheapest capable tier](/ai-development/model-routing#delegation-the-cheapest-capable-tier).
 
-<Note>
-  **Current state:** the fast tier's GPU serving is disabled in the
-  configuration and the routers carry only the CPU standby for the small-model
-  aliases — the degradation path above is what serves today. The endpoint,
-  model list, and client usage below are unaffected; the GPU deployments can
-  be restored by flipping the same configuration gates.
-</Note>
+The router chooses among the tiers it's allowed to reach for a given request
+by a learned quality-vs-cost tradeoff rather than a fixed order — see
+[Cost as data](/ai-development/model-routing#cost-as-data-not-a-hardcoded-order).
+Each tier still registers an honest cost, so in practice the order above is
+what falls out: local primary, then local GPU, then the free hosted tier,
+then paid providers.
 
 ## How you reach it
 
@@ -44,39 +57,49 @@ flowchart LR
   Chat([Open WebUI<br/>chat.·])
   Edge([Technitium DNS<br/>Traefik · wildcard TLS])
   Pool([LiteLLM router pool<br/>llm.· /v1 — ×3])
-  Large([Heavy backend<br/>Apple Silicon · TLS gate])
-  Fast([llama.cpp fast tier<br/>RX 6800 GPU])
+  Large([Local primary<br/>Apple Silicon · TLS gate])
+  Fast([Local GPU fallback<br/>RX 6800 · fail-fast])
+  Free([Free hosted tier<br/>stable handle])
+  Paid([Paid providers<br/>explicit id only])
 
   Mac --> Edge
   Chat --> Edge
   Edge --> Pool
   Pool --> Large
   Pool --> Fast
+  Pool -.fallback.-> Free
+  Pool -.explicit only.-> Paid
 
   classDef host fill:#102937,stroke:#4FB3A9,stroke-width:2px,color:#F4EFE6;
   classDef edge fill:#102937,stroke:#F4EFE6,stroke-width:1.5px,color:#F4EFE6;
   classDef ai   fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
+  classDef cloud fill:#0B1D2A,stroke:#4FB3A9,stroke-width:1.5px,color:#F4EFE6,stroke-dasharray: 4 3;
 
   class Mac,Chat host
   class Edge edge
   class Pool,Large,Fast ai
+  class Free,Paid cloud
 
   linkStyle default stroke:#4FB3A9,stroke-width:1.5px;
 ```
 
-Teal is a client, ink is the DNS + reverse-proxy edge, coral is the serving
-fabric. Traefik health-checks the router pool (`/health/liveliness`) and drops
-a dead router without the endpoint changing — stopping one router live is a
-non-event. Every name resolves through Technitium and carries the wildcard
-certificate, so it is HTTPS end to end.
+Teal is a client, ink is the DNS + reverse-proxy edge, coral is the local
+serving fabric, dashed teal is a hosted tier reached only as fallback or by
+explicit request. Traefik health-checks the router pool
+(`/health/liveliness`) and drops a dead router without the endpoint
+changing — stopping one router live is a non-event. Every name resolves
+through Technitium and carries the wildcard certificate, so it is HTTPS end
+to end.
 
 ## What's in the stack
 
 | Piece | Does | Reached at |
 | --- | --- | --- |
 | `llm-router-1/2/3` | Stateless LiteLLM proxies, one per cluster node — the model table, tier fallbacks, and the heavy-backend bearer live here | `https://llm.<domain>/v1` (pooled) |
-| `llm-fast` | llama-swap + llama.cpp (ROCm) on the **RX 6800**; fast tier + `embeddings` | via the router |
+| `llm-fast` | llama-swap + llama.cpp (ROCm) on the **RX 6800**; fast tier + `embeddings`, and a fail-fast fallback leg for the large tier | via the router |
 | `llm-light` | Same lineup, CPU-only, on the sleeps-by-default node | via the router (fallback) |
+| free hosted tier | Reached through a stable handle; the model behind it lives in the provider's own configuration, not here | via the router (fallback, behind both local tiers) |
+| paid providers | Reached only by explicit model identifier; never an implicit fallback | via the router (opt-in) |
 | `open-webui` | Chat front-end, default model = the large tier | `https://chat.<domain>` |
 | `qdrant` | Vector store for retrieval | `https://qdrant.<domain>` |
 | `llamaindex` | RAG engine — takes `embeddings` **from the router**, stores in Qdrant | internal (RAG) |

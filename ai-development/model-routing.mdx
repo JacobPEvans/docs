@@ -69,11 +69,49 @@ whichever tier can do it most cheaply, in roughly this order:
 3. **The agent's own model.** The fallback, not the default. An agent that
    delegates and ends up here has saved nothing.
 
-Two properties make external access safe enough to leave switched on. It should
-be **opt-in by explicit model identifier**, so nothing routes to a paid provider
-implicitly. And it should be **excluded from fallback chains**, so a rate-limited
-or flaky external provider can never degrade a local call that would otherwise
-have succeeded.
+External access should always be **opt-in by explicit model identifier**, so
+nothing routes to a paid provider implicitly.
+
+Whether an external tier may also sit *inside* a fallback chain — rather than
+being reached only by explicit request — depends on whether its cost and
+failure modes are bounded. An external tier priced honestly (so the router's
+cost-vs-quality tradeoff sees its real price, not zero) and with fail-fast
+behavior (rejects immediately when unavailable, never retries or backs off in
+place) can safely occupy a fallback leg: a chain with several such legs, each
+individually rate-capped, degrades gracefully rather than emptying because one
+provider is flaky. The case the old, blanket "always exclude" advice actually
+guards against is the *unbounded* one — a provider with no rate ceiling of its
+own, or one that retries and backs off internally, can turn a fallback chain
+into an unbounded wait or an unbounded bill; keep that kind out entirely.
+
+### Cost as data, not a hardcoded order
+
+A hand-ordered fallback chain — "try local, then this provider, then that
+one" — freezes today's guess about what's cheap and good into code. It stops
+being true the moment a model's price or quality changes, and nobody notices
+until the ordering is visibly wrong.
+
+The alternative is a router that classifies each request, keeps a running
+quality estimate per model, and weighs that estimate against each model's
+*registered* cost through a single tunable weight — rather than consulting a
+fixed list. "Prefer local" then isn't a rule anyone wrote; it falls out of
+local tiers carrying an honestly low registered cost. Raise a hosted tier's
+registered price and the router prefers it less, automatically, with no
+reordering. The lesson generalizes past this one router: whenever "prefer
+cheap/local" is encoded as an explicit if-first-then-else chain, ask whether
+it could instead be a cost value the decision reads.
+
+### The stable-handle pattern, for a tier you don't control
+
+A hosted free tier is often a moving target — the provider lets you point a
+name at whichever underlying model you want, and changes it on their side
+without warning. Model routing already has the answer for that from
+[Ask for a role, not a model](#ask-for-a-role-not-a-model): give it a **stable
+handle** and never route on the identifier behind it. Here the indirection is
+provider-side rather than in your own registry — you edit the provider's
+dashboard, not your config — but the property that matters is identical: the
+handle is what every caller names, and the model behind it can change with no
+code change and no redeploy on your end.
 
 ## Advisory controls are not enforcement
 
