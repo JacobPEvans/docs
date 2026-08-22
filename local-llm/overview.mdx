@@ -42,6 +42,11 @@ which the second workstation superseded.
 The homelab's self-hosted autonomous agents run continuously and connect to
 that same endpoint as their model backend.
 
+A free hosted tier sits behind both local tiers in the fallback order — it is
+reached only when local capacity is unavailable, never in front of it. See
+[Model routing](/ai-development/model-routing#delegation-the-cheapest-capable-tier)
+for the general policy this follows.
+
 ## Current shape, and what's still gated
 
 {/* Shape: linear chain. 3 nodes, one timeline. Aspect ~3:1 LR. Role via classDef. */}
