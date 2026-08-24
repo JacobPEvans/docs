@@ -120,10 +120,10 @@ Each concern maps to one well-worn open-source tool. None of it is bespoke.
 | --- | --- | --- |
 | Snapshot scheduling & retention | **sanoid** | Takes time-based snapshots and prunes them on an hourly / daily / monthly ladder |
 | Incremental replication | **syncoid** | Wraps `zfs send \| zfs receive` to ship only changed blocks between nodes |
-| App-consistent VM/LXC backup | **Proxmox Backup Server** | Deduplicated, verifiable guest backups — complements raw ZFS send for things mid-write |
+| App-consistent backup | **Logical dumps** | Per-application dump jobs (for example `pg_dump`) for data that must be consistent mid-write, written to a replicated dataset |
 | Capacity alerting | **ntfy** | Pushes a notification when a pool crosses 50% / 75% / 90% |
 
-Snapshots and replication protect the filesystem; Proxmox Backup Server protects the *guests* (a database mid-transaction needs an application-consistent backup, not just a block snapshot). The two are complementary, not redundant.
+Snapshots and replication protect the filesystem; logical dumps protect the *applications* (a database mid-transaction needs an application-consistent backup, not just a block snapshot). The two are complementary, not redundant. A dedicated backup appliance was evaluated for this layer and deliberately not adopted — the dump-plus-replication pattern already covers the gap without operating a second backup product.
 
 ## What this connects to
 
@@ -135,7 +135,7 @@ Snapshots and replication protect the filesystem; Proxmox Backup Server protects
     Where sanoid, syncoid, and the ZFS roles are defined.
   </Card>
   <Card title="tofu-proxmox" icon="cubes" href="/infrastructure/repos/tofu-proxmox">
-    Declares the nodes, pools, and the backup-server guest.
+    Declares the nodes, pools, and the guests that run on them.
   </Card>
   <Card title="Infrastructure overview" icon="sitemap" href="/infrastructure/overview">
     How the Proxmox stack fits the rest of the homelab.
