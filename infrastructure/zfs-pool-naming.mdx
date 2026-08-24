@@ -1,6 +1,6 @@
 ---
 title: "ZFS pool naming: tiers, not nodes"
-description: "Pool names encode the storage medium (nvme / ssd / sas / bulk) and nothing else — never the node, the RAID level, or the drive count — so dataset paths are identical on every node and replicas line up by construction."
+description: "Pool names encode the storage medium (nvme / ssd / sas / bulk) or the system role (rpool) and nothing else — never the node, the RAID level, or the drive count — so dataset paths are identical on every node and replicas line up by construction."
 page_type: decision
 ---
 
@@ -32,7 +32,7 @@ are allowed here while the anti-patterns below are not: the medium is a fact
 about the device, whereas node, RAID level, and drive count are facts about a
 particular arrangement of devices.
 
-A node only creates the pools it has hardware for. A `proxmox-2`-style node with an HDD array gets `bulk`; a node with a spare SATA SSD gets `ssd`; a node with a spare NVMe device gets `nvme`; every ZFS-boot node already has `rpool`.
+A node only creates the pools it has hardware for. A `proxmox-2`-style node with an HDD array gets `bulk`; a node with spare enterprise spinning disks gets `sas`; a node with a spare SATA SSD gets `ssd`; a node with a spare NVMe device gets `nvme`; every ZFS-boot node already has `rpool`.
 
 ## What a pool name must never encode
 
