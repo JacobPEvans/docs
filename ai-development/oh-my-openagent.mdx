@@ -79,9 +79,9 @@ plugin is live; a plain answer with no header means it is not loaded.
 ## Known upstream skew
 
 The latest published release disagrees with itself about agent model config:
-its doctor flags the installer-generated `models[]` arrays as invalid while
-calling the documented `model`/`fallback_models` shape deprecated, and its own
-`config migrate` is a no-op. Either shape loads (exit 0); the normalized shape
-avoids the startup-blocking warnings. Model ids in generated chains can also
+its `doctor` command flags the installer-generated `models[]` arrays as
+invalid while calling the documented `model`/`fallback_models` shape
+deprecated, and its own `config migrate` is a no-op. Either shape loads (exit 0); the normalized shape
+avoids the startup-blocking warnings. Model IDs in generated chains can also
 drift behind the live provider catalog (for example `gpt-5-nano`) — fallback
 chains absorb it at runtime.
