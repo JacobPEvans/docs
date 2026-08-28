@@ -196,6 +196,39 @@ Size the footprint against `--max-cache-blocks`. A host tuned on
 `--cache-memory-mb` alone can still cross `trip` under concurrency, because the
 pool that grew was never the one it capped.
 
+## A context limit includes the answer
+
+The context number exposed by a serving profile is a total admission limit. It
+is not an input-only promise. Before a worker accepts a request, it must reserve
+room for both the prompt and the allowed completion:
+
+```text
+prompt tokens + output reservation ≤ configured total context
+```
+
+Keep the values separate in configuration, runtime records, and benchmark
+reports:
+
+- **Model-native maximum:** what the checkpoint architecture can support.
+- **Configured total context:** what this serving profile is willing to admit.
+- **Actual prompt tokens:** what the server received for one request.
+- **Output reservation:** the completion room protected at admission.
+- **Actual total context:** what the request used after completion.
+
+This distinction prevents two common mistakes. First, a 32k prompt with a
+512-token reservation does not fit a 32k total limit; it needs a larger total
+budget or a smaller prompt. Second, enabling a 192k total limit does not turn a
+32k input into a 192k benchmark. It creates a useful window-sensitivity case:
+measure the same 32k input under both configurations, then report the actual
+prompt and configured limit together.
+
+Context is only one part of memory use. The active paged-KV pool grows with
+actual admitted requests. The prefix cache is separate shared storage, and
+model weights, operating-system cache, and load-time workspace use affect
+headroom without changing a request's token count. A safe long-context policy
+therefore reserves output first, admits against the global KV pool, and records
+which cache states applied to the measurement.
+
 ## Safety is runtime, not a build assert
 
 Holding `footprint < trip < ceiling` by hand means two coupled knobs — the

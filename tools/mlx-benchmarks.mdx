@@ -121,6 +121,58 @@ honest basis for a cross-model comparison even though cumulative is the
 headline. When two numbers disagree about which model is faster, check whether
 they were taken in the same regime before you believe either.
 
+## Long-context results need two context values
+
+A benchmark's requested prompt length is not its serving limit. Publish both
+values so a reader can tell what the worker was configured to admit and what it
+actually processed:
+
+- **Configured total context:** the request budget admitted by the serving
+  profile. It includes input and reserved output.
+- **Actual prompt tokens:** the input tokens reported by the server for this
+  request.
+- **Output reservation:** the completion tokens reserved before admission.
+- **Actual total context:** actual prompt tokens plus the completion tokens
+  returned.
+
+The admission check is always:
+
+```text
+actual prompt tokens + output reservation ≤ configured total context
+```
+
+For example, a 32k prompt sent to a 192k-enabled profile is still a 32k input
+measurement. It belongs in a separate window-sensitivity row because the
+configured 192k limit may change memory allocation or scheduling. It is not a
+192k prompt result. Compare it with a 32k prompt under a 32k-enabled profile to
+answer whether enabling a larger window changes short-request speed.
+
+## Cache state and campaign results
+
+Cache provenance is several independent facts, not one `cache-busted` label:
+
+- **Weights:** exact model revision and quantization loaded by the worker.
+- **Model load:** whether the process was already resident or started for the
+  cell.
+- **Prompt prefix:** whether a shared prompt prefix was reused; cache-cold rows
+  use a unique full prefix and assert zero reported cached prompt tokens when
+  the server exposes that telemetry.
+- **Operating-system and evaluation caches:** state that can affect loading or
+  evaluation even when prompt-prefix reuse is absent.
+
+Each campaign row also carries a cell status. `success` contains valid measured
+rates. `failed` preserves a completed but invalid run. `capacity_gated` records
+a safety refusal. `unsupported` records a missing backend capability.
+`aborted` records a run stopped by a safety guard. `not_applicable` means the
+requested window or profile does not exist for that model. None of those status
+rows is a zero-throughput result.
+
+Published results are immutable shards. A new campaign appends a new shard and
+run-index entry; it does not rewrite a historical row to make a comparison look
+cleaner. The viewer distinguishes historical evidence from current campaign
+evidence, and comparisons must name the run, serving profile, context values,
+concurrency, cache state, and model revision that produced them.
+
 ### A worked comparison, one stated regime
 
 Isolated workers with loaded weights proven from the running command line, one
