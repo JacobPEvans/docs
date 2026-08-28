@@ -9,7 +9,7 @@ page_type: explanation
 > prompt cache absorbs whatever is left — which is why the context window that
 > "fits in memory" can still be the wrong one.
 
-[Memory ceilings](/local-llm/memory-ceilings/) covers the layered budget: the
+[Memory ceilings](/local-llm/memory-ceilings) covers the layered budget: the
 wired ceiling, `--gpu-memory-utilization` as a cap rather than a reservation,
 the `perTokenKvBytes` formula, and load-time admission control. This page picks
 up where that one stops — at the **prompt cache**, and at what concurrency
@@ -147,7 +147,7 @@ treats it as an OOM, costs you capability, and leaves the block count unchanged.
 ## Worked example: why a longer window can be the wrong choice
 
 Take a hybrid-attention model charging 64 KiB/token of KV (see
-[Memory ceilings](/local-llm/memory-ceilings/) for how to derive that from the
+[Memory ceilings](/local-llm/memory-ceilings) for how to derive that from the
 architecture), 17 GiB of weights, two concurrent streams, and a 48 GiB
 per-worker budget with ~10% held back for allocator overhead:
 
@@ -191,10 +191,10 @@ files is the failure this whole page describes.
 
 ## Related
 
-- [Memory ceilings](/local-llm/memory-ceilings/) — the layered budget, the
+- [Memory ceilings](/local-llm/memory-ceilings) — the layered budget, the
   `perTokenKvBytes` formula, `kvLayers` on hybrid architectures, and load-time
   admission control.
-- [Apple Silicon](/local-llm/apple-silicon/) — unified memory and the wired
+- [Apple Silicon](/local-llm/apple-silicon) — unified memory and the wired
   ceiling.
-- [Choosing a model](/local-llm/choosing-a-model/) — picking the shape before
+- [Choosing a model](/local-llm/choosing-a-model) — picking the shape before
   sizing it.
