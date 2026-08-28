@@ -4,8 +4,6 @@ description: "How the prompt cache, concurrency and the paged KV pool compete fo
 page_type: explanation
 ---
 
-<!-- markdownlint-disable MD033 -->
-
 > Three consumers share one budget: model weights, the live KV pool, and the
 > prompt cache. Weights and live KV are fixed by the shape you serve, so the
 > prompt cache absorbs whatever is left — which is why the context window that
