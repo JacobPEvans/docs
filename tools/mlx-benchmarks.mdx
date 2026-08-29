@@ -189,17 +189,21 @@ warmed median.
 | Qwen3.8 27B, 4-bit | 31,998 | 177.25 | 180.45 | 17.63 | success, 4/4, no swap |
 | Qwen3.8 27B, 4-bit | 64,002 | 141.15 | 143.89 | 6.93 | success, 4/4, no swap |
 | Qwen3.8 27B, 4-bit | 128,000 target | — | — | — | capacity-gated: first nonzero swap and interrupted request; not scored |
+| Qwen3.8 27B MTP, 4-bit | 32,000 | 232.22 | 233.18 | 19.55 | success, 4/4, isolated native-MTP c1 profile; no new swap |
+| Qwen3.8 27B MTP, 4-bit | 63,998 | 206.38 | 207.30 | 21.19 | success, 4/4, isolated native-MTP c1 profile; no new swap |
 
 The selected Qwen3.8 profile has a 131k configured window, so 192k is
 `not_applicable`, not a zero-speed result.
 
 ### Runtime capability status
 
-The MTP drafter is not treated as a base-model fallback. It remains
-`unsupported` until its required serving backend is active and proven by a live
-completion. That runtime status is deliberately separate from the immutable
-measurement table above; a future activation adds a new, labeled MTP row rather
-than changing any existing base-model evidence.
+The MTP drafter was proven by live completions in an isolated native-MTP c1
+profile. It is still not a base-model fallback or a serving default. The base
+and MTP rows use different serving backends, so their rate difference is not an
+MTP-only speed multiplier. That runtime status remains separate from the
+immutable measurement table: a production activation requires its own verified
+route and adds a labeled MTP row without changing any existing base-model
+evidence.
 
 ### A worked comparison, one stated regime
 
