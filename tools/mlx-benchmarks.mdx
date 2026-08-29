@@ -191,9 +191,15 @@ warmed median.
 | Qwen3.8 27B, 4-bit | 128,000 target | — | — | — | capacity-gated: first nonzero swap and interrupted request; not scored |
 
 The selected Qwen3.8 profile has a 131k configured window, so 192k is
-`not_applicable`, not a zero-speed result. Its MTP drafter is also not treated
-as a base-model fallback: it is `unsupported` until the explicitly required
-MTP-capable serving backend is active and proven by a live completion.
+`not_applicable`, not a zero-speed result.
+
+### Runtime capability status
+
+The MTP drafter is not treated as a base-model fallback. It remains
+`unsupported` until its required serving backend is active and proven by a live
+completion. That runtime status is deliberately separate from the immutable
+measurement table above; a future activation adds a new, labeled MTP row rather
+than changing any existing base-model evidence.
 
 ### A worked comparison, one stated regime
 
