@@ -293,6 +293,7 @@
               "local-llm/context",
               "local-llm/apple-silicon",
               "local-llm/memory-ceilings",
+              "local-llm/prompt-cache-and-concurrency",
               "local-llm/mac-studio",
               "local-llm/nix-serving-stack",
               "local-llm/models-and-quantization",
