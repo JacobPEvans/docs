@@ -121,6 +121,90 @@ honest basis for a cross-model comparison even though cumulative is the
 headline. When two numbers disagree about which model is faster, check whether
 they were taken in the same regime before you believe either.
 
+## Long-context results need two context values
+
+A benchmark's requested prompt length is not its serving limit. Publish both
+values so a reader can tell what the worker was configured to admit and what it
+actually processed:
+
+- **Configured total context:** the request budget admitted by the serving
+  profile. It includes input and reserved output.
+- **Actual prompt tokens:** the input tokens reported by the server for this
+  request.
+- **Output reservation:** the completion tokens reserved before admission.
+- **Actual total context:** actual prompt tokens plus the completion tokens
+  returned.
+
+The admission check is always:
+
+```text
+actual prompt tokens + output reservation ≤ configured total context
+```
+
+For example, a 32k prompt sent to a 192k-enabled profile is still a 32k input
+measurement. It belongs in a separate window-sensitivity row because the
+configured 192k limit may change memory allocation or scheduling. It is not a
+192k prompt result. Compare it with a 32k prompt under a 32k-enabled profile to
+answer whether enabling a larger window changes short-request speed.
+
+## Cache state and campaign results
+
+Cache provenance is several independent facts, not one `cache-busted` label:
+
+- **Weights:** exact model revision and quantization loaded by the worker.
+- **Model load:** whether the process was already resident or started for the
+  cell.
+- **Prompt prefix:** whether a shared prompt prefix was reused; cache-cold rows
+  use a unique full prefix and assert zero reported cached prompt tokens when
+  the server exposes that telemetry.
+- **Operating-system and evaluation caches:** state that can affect loading or
+  evaluation even when prompt-prefix reuse is absent.
+
+Each campaign row also carries a cell status. `success` contains valid measured
+rates. `failed` preserves a completed but invalid run. `capacity_gated` records
+a safety refusal. `unsupported` records a missing backend capability.
+`aborted` records a run stopped by a safety guard. `not_applicable` means the
+requested window or profile does not exist for that model. None of those status
+rows is a zero-throughput result.
+
+Published results are immutable shards. A new campaign appends a new shard and
+run-index entry; it does not rewrite a historical row to make a comparison look
+cleaner. The viewer distinguishes historical evidence from current campaign
+evidence, and comparisons must name the run, serving profile, context values,
+concurrency, cache state, and model revision that produced them.
+
+### Fresh 2026-08 context evidence
+
+The current isolated campaign uses a 64-token output reservation, one request
+at a time, a cache-busted full prompt for each measured repetition, and four
+warmed repetitions per successful cell. The first request is archived under
+`readiness` with an explicit `initial_model_state`; it is never included in the
+warmed median.
+
+| Model | Actual prompt | Warm cumulative tok/s | Warm prefill tok/s | Warm decode tok/s | Status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Qwen3.5 9B, 4-bit | 32,000 | 749.87 | 765.47 | 65.69 | success, 4/4, no swap |
+| Qwen3.6 35B-A3B, 4-bit | 32,000 | 1,157.12 | 1,187.01 | 55.22 | success, 4/4, no swap |
+| Qwen3.6 35B-A3B, 4-bit | 63,998 | 732.51 | 740.45 | 30.75 | success, 4/4, no swap |
+| Qwen3.8 27B, 4-bit | 31,998 | 177.25 | 180.45 | 17.63 | success, 4/4, no swap |
+| Qwen3.8 27B, 4-bit | 64,002 | 141.15 | 143.89 | 6.93 | success, 4/4, no swap |
+| Qwen3.8 27B, 4-bit | 128,000 target | — | — | — | capacity-gated: first nonzero swap and interrupted request; not scored |
+| Qwen3.8 27B MTP, 4-bit | 32,000 | 232.22 | 233.18 | 19.55 | success, 4/4, isolated native-MTP c1 profile; 9.20 GiB post-run swap observed |
+| Qwen3.8 27B MTP, 4-bit | 63,998 | 206.38 | 207.30 | 21.19 | success, 4/4, isolated native-MTP c1 profile; 9.20 GiB post-run swap observed |
+
+The selected Qwen3.8 profile has a 131k configured window, so 192k is
+`not_applicable`, not a zero-speed result.
+
+### Runtime capability status
+
+The MTP drafter was proven by live completions in an isolated native-MTP c1
+profile. It is still not a base-model fallback or a serving default. The base
+and MTP rows use different serving backends, so their rate difference is not an
+MTP-only speed multiplier. That runtime status remains separate from the
+immutable measurement table: a production activation requires its own verified
+route and adds a labeled MTP row without changing any existing base-model
+evidence.
+
 ### A worked comparison, one stated regime
 
 Isolated workers with loaded weights proven from the running command line, one
