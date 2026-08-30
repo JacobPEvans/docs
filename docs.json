@@ -271,6 +271,7 @@
             "pages": [
               "autonomous-agents/overview",
               "autonomous-agents/runtime",
+              "autonomous-agents/herdr",
               "autonomous-agents/github-access",
               "autonomous-agents/task-management",
               "autonomous-agents/incident-management",
