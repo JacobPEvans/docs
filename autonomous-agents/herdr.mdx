@@ -105,9 +105,12 @@ instead.
 
 **herdr fetches agent-detection updates from the internet at runtime** and
 applies them without restarting. On a machine whose whole configuration is
-declared in code, that is state arriving from outside. Local definitions win,
-so declare the ones that matter rather than trusting whatever the network last
-sent.
+declared in code, that is state arriving from outside.
+
+Treat the fetch as something to override, not to rely on. Local definitions
+take precedence, so declare every agent you care about in Nix; the container's
+egress policy decides whether herdr can reach the update endpoint at all. Both
+levers are enforceable from code, which the fetch itself is not.
 
 Related: [self-hosted AI agent](/autonomous-agents/hermes-agent) ·
 [agent runtime](/autonomous-agents/runtime) ·
