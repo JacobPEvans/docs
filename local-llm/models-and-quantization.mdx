@@ -57,6 +57,21 @@ The honest position: keep a well-supported 4-bit quant as the default, and treat
 the sensitivity-aware and distillation lanes as candidates to benchmark against
 it — promote one only when the dataset shows a real win.
 
+### MTP is a separate axis from bit depth
+
+Some builds of a model ship an extra **multi-token prediction** head — a draft
+module trained alongside the model — published either as an MTP-bearing target
+or as a standalone drafter artifact. That is a different axis from how many bits
+the body is stored at, and the two combine freely: a 6-bit drafter drives a
+4-bit target, so adopting it does not mean re-downloading your weights.
+
+It also inverts the usual quantization instinct. The drafter is a small fraction
+of the parameters, so keeping it at *higher* precision than the body is cheap —
+and worth doing, because over-quantizing a draft head costs you draft acceptance
+rather than answer quality. The model keeps answering correctly while the
+speedup silently disappears, which is a hard failure to spot from output alone.
+See [Speculative decoding and MTP](/local-llm/speculative-decoding).
+
 ## Tiers: fast now, big overnight
 
 128 GB comfortably fits far more than the interactive default. Think in tiers,
