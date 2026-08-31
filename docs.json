@@ -78,6 +78,17 @@
             ]
           },
           {
+            "group": "Explainers",
+            "pages": [
+              "explainers/overview",
+              "explainers/what-is-a-hypervisor",
+              "explainers/clusters-and-quorum",
+              "explainers/staying-up-when-a-machine-dies",
+              "explainers/one-login-for-everything",
+              "explainers/secrets-that-expire"
+            ]
+          },
+          {
             "group": "Architecture",
             "pages": [
               "architecture/overview",
