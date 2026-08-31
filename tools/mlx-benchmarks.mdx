@@ -205,7 +205,7 @@ the warm medians.
 | --- | ---: | ---: | ---: | ---: | --- |
 | Qwen3.8 27B, 4-bit, base c1 | 128,000 | 166.86 | 167.00 | 17.73 | success, 4/4, clean reset, no swap |
 | Qwen3.8 27B MTP, 4-bit, c1 | 128,000 | 166.77 | 167.04 | 12.45 | success, 4/4, clean reset, no swap |
-| Qwen3.8 27B MTP, 4-bit, c2 | 128,000 | 166.84 | 167.04 | 12.31 | success, 4/4 sequential; the two-request probe completed 2/2 at 166.81 aggregate cumulative tok/s, no swap |
+| Qwen3.8 27B MTP, 4-bit, c2 | 128,000 | 166.84 | 167.04 | 12.31 | success, four sequential resident samples; one two-request probe completed 2/2 at 166.81 aggregate cumulative tok/s, no swap |
 | Qwen3.8 27B MTP, 4-bit, c4 | 128,000 | — | — | — | unscored concurrent attempt: 1/4 streams completed before the harness 1,800-second stream timeout; no swap |
 
 The clean-reset base and MTP c1 rows show comparable 128k prompt throughput.
