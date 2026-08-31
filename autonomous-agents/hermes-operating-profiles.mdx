@@ -29,6 +29,14 @@ after its assignee moves — but it means a narrowly scoped profile can still
 recall anything any other profile of that agent ever wrote. Profile scoping
 is not a data boundary.
 
+The shared bank is the agent's bank in the network memory provider, not the
+per-directory files. It is keyed by the agent's id and deliberately not
+sub-keyed by profile, so every profile of one agent resolves to the same bank.
+The built-in `MEMORY.md` / `USER.md` files described in
+[Self-hosted AI agent](/autonomous-agents/hermes-agent) live in each profile's
+own `HERMES_HOME` and are not the shared surface. Separate agents derive
+separate banks and share nothing.
+
 ## Current roster
 
 Choosing a profile is the default action for new recurring work, not an
