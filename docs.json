@@ -264,6 +264,7 @@
               "ai-development/oh-my-openagent",
               "ai-development/agent-instruction-stack",
               "autonomous-agents/hermes-agent",
+              "autonomous-agents/hermes-operating-profiles",
               "ai-development/repo-boundaries",
               "ai-development/ai-assistant-instructions",
               "ai-development/claude-code-plugins",

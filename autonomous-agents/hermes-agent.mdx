@@ -26,15 +26,50 @@ A dedicated LXC on the AI VLAN runs the `hermes gateway` daemon under systemd
   on a dedicated volume that is snapshotted and replicated off-node, plus the
   **Hindsight** provider (knowledge-graph recall) — a separate self-hosted
   service the agent reaches over the network rather than an in-process store.
-- **Containment:** the LXC is the blast-radius boundary — Hermes *profiles* isolate
-  agent state, not OS access — with deliberately narrow egress.
+- **Containment:** the LXC is the blast-radius boundary, with deliberately narrow
+  egress. Within one agent, named *profiles* scope which tools and credentials a
+  job gets — a tool/credential boundary, not an OS sandbox: every profile runs as
+  the same user in the same container, and all profiles of one agent share the
+  same memory. See [Operating profiles](/autonomous-agents/hermes-operating-profiles).
+
+## More than one agent
+
+The homelab runs more than one independent Hermes agent identity side by side —
+each its own container, Slack app, OpenBao credential domain, and memory bank, so
+one agent's state never leaks into another's. The primary identity is `hermes`;
+a second, purpose-built identity (`donna`) runs the same way. New identities are
+declared, not layered on top of an existing one — see
+[Operating profiles](/autonomous-agents/hermes-operating-profiles) for how a single
+agent's tools/credentials are further scoped by profile underneath that.
+
+```mermaid
+%%{init: {'theme':'base','look':'handDrawn','themeVariables':{'fontFamily':'Geist','fontSize':'14px','primaryColor':'#102937','primaryTextColor':'#F4EFE6','primaryBorderColor':'#4FB3A9','lineColor':'#4FB3A9','secondaryColor':'#0B1D2A','tertiaryColor':'#1A2A38','clusterBkg':'rgba(79,179,169,0.08)','clusterBorder':'#4FB3A9'}}}%%
+flowchart TB
+    subgraph HermesC["hermes — own container, Slack app, memory"]
+        HD[default]
+        HS[splunk-admin]
+        HH[homelab-admin]
+        HG[github-maint]
+    end
+    subgraph DonnaC["donna — own container, Slack app, memory"]
+        DD[default]
+    end
+
+    classDef container fill:#0B1D2A,stroke:#4FB3A9,stroke-width:2px,color:#F4EFE6;
+    classDef profile fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
+
+    class HermesC,DonnaC container
+    class HD,HS,HH,HG,DD profile
+```
+
+No arrow connects the two containers above — that is the point. Separate agents
+share no memory, credentials, or Slack channel.
 
 ## Reaching it
 
 Headless: SSH in and run `hermes` for the terminal UI, drive it through its gateway,
 or talk to it in **Slack** — the wired-in messaging gateway (Socket Mode), and the
-sole chat platform in front of it today. Multi-agent *profiles* + *Kanban* teams can
-be layered on later — the agent home is already provisioned for them.
+sole chat platform in front of it today.
 
 The optional Web Dashboard runs as a separate service. It is published only through
 the homelab's TLS reverse proxy and uses the same single-sign-on provider as the
