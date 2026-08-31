@@ -192,6 +192,34 @@ warmed median.
 | Qwen3.8 27B MTP, 4-bit | 32,000 | 232.22 | 233.18 | 19.55 | success, 4/4, isolated native-MTP c1 profile; 9.20 GiB post-run swap observed |
 | Qwen3.8 27B MTP, 4-bit | 63,998 | 206.38 | 207.30 | 21.19 | success, 4/4, isolated native-MTP c1 profile; 9.20 GiB post-run swap observed |
 
+### Clean-reset 2026-08-30 128k matrix
+
+This separate immutable campaign began after a Studio reboot. The production
+model lifecycle was quiesced before each cell, the preflight swap value was
+zero, and the server used a 131,072-token window with a 128,000-token prompt
+and a 64-token output reservation. Each row has four resident repetitions.
+The cold first request is retained as readiness evidence and is excluded from
+the warm medians.
+
+| Model and profile | Actual prompt | Warm cumulative tok/s | Warm prefill tok/s | Warm decode tok/s | Status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Qwen3.8 27B, 4-bit, base c1 | 128,000 | 166.86 | 167.00 | 17.73 | success, 4/4, clean reset, no swap |
+| Qwen3.8 27B MTP, 4-bit, c1 | 128,000 | 166.77 | 167.04 | 12.45 | success, 4/4, clean reset, no swap |
+| Qwen3.8 27B MTP, 4-bit, c2 | 128,000 | 166.84 | 167.04 | 12.31 | success, four sequential resident samples; one two-request probe completed 2/2 at 166.81 aggregate cumulative tok/s, no swap |
+| Qwen3.8 27B MTP, 4-bit, c4 | 128,000 | — | — | — | unscored concurrent attempt: 1/4 streams completed before the harness 1,800-second stream timeout; no swap |
+
+The clean-reset base and MTP c1 rows show comparable 128k prompt throughput.
+The c2 result admitted two requests without swap, but its aggregate rate stayed
+at the c1 rate. In this native MTP configuration, the long-prefill path queued
+rather than increasing aggregate throughput. The c4 attempt is preserved as
+transport-limited evidence, not a capacity or quality verdict.
+
+Full-attention KV math informed the preflight only: 64 KiB per token per
+sequence is about 7.816 GiB at 128,000 plus 64 tokens, or 31.266 GiB for four
+sequences. Hybrid linear-attention state, weights, allocator behavior, and
+scratch space are outside that calculation, so runtime telemetry remains the
+fit result.
+
 The selected Qwen3.8 profile has a 131k configured window, so 192k is
 `not_applicable`, not a zero-speed result.
 
