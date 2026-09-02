@@ -1,8 +1,20 @@
 # Agent instructions for docs.jacobpevans.com
 
-This is the documentation site for Jacob P Evans, built on Mintlify (Hobby tier),
-deployed at `https://docs.jacobpevans.com`. The repo is the source of truth — all
-MDX, diagrams, and config are version-controlled here.
+This is the generated Mintlify projection for the public documentation site.
+Documentation is authored in a separate private source; this repository is a
+publication target, not a knowledge base.
+
+## Generated-content boundary
+
+- AI agents never author or edit content in this repository.
+- Pages, assets, and `docs.json` arrive only in a publisher-generated pull request.
+- Generated pull requests come only from the publisher identity and merge
+  automatically once every required check passes. No separate human approval
+  gates a generated pull request.
+- Humans may maintain repository control-plane files such as workflows and this
+  policy, but must not hand-edit the generated projection.
+- Raw live secrets, private keys, and recovery codes are prohibited in every
+  documentation source.
 
 ## About this project
 
@@ -38,10 +50,8 @@ Brand voice (header tagline):
 - One idea per sentence
 - Diagrams over prose where structure matters
 
-The canonical, reader-facing standard — information architecture, page naming,
-frontmatter (`page_type`), navigation density, and cited sources — is the published
-page [`conventions/documentation-standards`](conventions/documentation-standards.mdx).
-Author new pages to it by default.
+The canonical authoring standard lives in the private source repository. Treat
+the rendered conventions pages here as generated output.
 
 ## Technical writing
 
@@ -63,8 +73,7 @@ Never cut a sentence to fit a character limit. If a line runs long, restructure
 it — split the sentence, use a bullet, or make a table — rather than reflowing
 the text to a fixed width.
 
-When your runtime has Claude Code skill support, invoke the `elements-of-style`
-plugin's `writing-clearly-and-concisely` skill before writing prose.
+These rules describe publisher output. Do not write prose directly here.
 
 ## Content boundaries — PUBLIC information only
 
@@ -73,7 +82,7 @@ plugin's `writing-clearly-and-concisely` skill before writing prose.
 - No references to private repos — treat them as if they don't exist
 - No credentials, tokens, or sensitive data
 
-If a repo's GitHub visibility is `PRIVATE`, it does not appear here. Verify with `gh repo view OWNER/REPO --json visibility` when in doubt.
+The publisher enforces this boundary before it opens a public pull request.
 
 ## Diagrams
 
@@ -91,9 +100,13 @@ you emit any Mermaid on this site:
 - [`conventions/mermaid-links`](conventions/mermaid-links.mdx) — making diagram
   nodes navigable with the `click` directive, and the external-URL workaround.
 
-## Phases
+## Paired pages
 
-- **Phase A** (current): foundation, theme, full nav skeleton, 8 priority diagrams, 9 category overviews, profile banner
-- **Phase B** (next): top 10 priority repo pages
-- **Phase C** (later): remaining ~20 public repos
-- **Phase D** (ongoing): new repos get a docs page on creation; quarterly diagram audit
+Until the generated projection is live, some pages here have a counterpart page
+in the private authoring source. A change to such a page must name the
+counterpart path in the pull request body and link the paired pull request. A
+page with no counterpart says so explicitly instead.
+
+The pairing table itself is not kept here. It lives with the architecture
+decision record in the private source, so there is one list, in one place,
+reviewed alongside the decision.

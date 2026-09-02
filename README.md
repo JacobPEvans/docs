@@ -2,13 +2,14 @@
 
 [![CI](https://github.com/JacobPEvans/docs/actions/workflows/ci.yml/badge.svg)](https://github.com/JacobPEvans/docs/actions/workflows/ci.yml)
 
-Source for the documentation site at
-[docs.jacobpevans.com](https://docs.jacobpevans.com).
+Generated Mintlify projection for
+[docs.jacobpevans.com](https://docs.jacobpevans.com). The private
+`dryvist/docs-starlight` repository is the sole documentation authoring source.
 
-Built with [Mintlify](https://mintlify.com). Content is MDX plus the
-`docs.json` config. All MDX, diagrams, and configuration live in this repo, so
-the site is fully portable to Docusaurus, Nextra, or any MDX-aware static site
-generator if Mintlify is ever unavailable.
+Built with [Mintlify](https://mintlify.com). The publisher deterministically
+converts an approved public projection from Starlight MDX, validates and scans
+the result, then opens a generated pull request. Content and `docs.json` must
+not be edited directly in this repository.
 
 ## Installation
 
@@ -29,9 +30,10 @@ mint broken-links  # Validate internal links
 
 ## Deploy
 
-Push to `main` triggers an auto-deploy via the Mintlify GitHub app. PRs land
-via the standard GitHub flow. Preview branches are a paid Mintlify feature, so
-verify locally with `mint dev` before merge.
+Push to `main` triggers an auto-deploy via the Mintlify GitHub app. Generated
+pull requests require provenance, validation, secret scanning, and a fresh
+human approval. Preview branches are a paid Mintlify feature, so the publisher
+validates the projection before opening the pull request.
 
 ## DNS
 
@@ -65,9 +67,10 @@ favicon.svg                    Favicon
 flake.nix                      Reproducible dev shell
 ```
 
-## Contributing
+## Control-plane contributions
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Direct documentation edits are not
+accepted.
 
 ## License
 
