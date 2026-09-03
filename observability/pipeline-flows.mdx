@@ -10,10 +10,10 @@ Every log and metric in this homelab converges on the same spine: sources reach 
 
 ## Monitoring overview
 
-Five source groups, two ingress load balancers (HAProxy for TCP syslog, nginx for UDP), one Cribl Edge/Stream spine, two sinks: Splunk (per-index HEC) and Langfuse (OTLP traces).
+Five source groups, two ingress load balancers (HAProxy for TCP syslog, nginx for UDP), one Cribl Edge/Stream spine, three sinks: Splunk (per-index HEC), Langfuse and Phoenix (OTLP traces).
 
 {/* Shape: parallel convergence. Boundary crossings: 0 (no subgraphs). */}
-{/* Ranks: 5 sources max. Total nodes: 11 (≤12). Aspect: ~2:1 LR. Pass. */}
+{/* Ranks: 5 sources max. Total nodes: 12 (≤12). Aspect: ~2:1 LR. Pass. */}
 
 ```mermaid
 %%{init: {'theme':'base','look':'handDrawn','themeVariables':{'fontFamily':'Geist','fontSize':'14px','primaryColor':'#102937','primaryTextColor':'#F4EFE6','primaryBorderColor':'#4FB3A9','lineColor':'#4FB3A9','secondaryColor':'#0B1D2A','tertiaryColor':'#1A2A38','clusterBkg':'rgba(79,179,169,0.08)','clusterBorder':'#4FB3A9'}}}%%
@@ -30,6 +30,7 @@ flowchart LR
   Stream([Cribl Stream])
   SP[(Splunk<br/>per-index HEC)]
   LF([Langfuse])
+  PX([Phoenix])
 
   Gear --> HAP
   Gear --> NGX
@@ -42,6 +43,7 @@ flowchart LR
   Edge --> Stream
   Stream --> SP
   Stream --> LF
+  Stream --> PX
 
   classDef src  fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
   classDef ai   fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
@@ -51,14 +53,15 @@ flowchart LR
   class Gear,Hosts,Bao src
   class CLIs,LLM ai
   class HAP,NGX,Edge,Stream hop
-  class SP,LF sink
+  class SP,LF,PX sink
 
   click Edge "/observability/monitoring-agents" "Every collector and where it runs"
   click SP "/observability/repos/ansible-splunk" "Splunk install + indexes"
   click LF "/observability/llm-observability" "Langfuse and the OTLP path"
+  click PX "/observability/phoenix" "Arize Phoenix: evals and experiments"
 
   linkStyle 0,1,2,3,4 stroke:#4FB3A9,stroke-width:2px;
-  linkStyle 5,6,7,8,9,10 stroke:#E06B4A,stroke-width:2px,stroke-dasharray:4 3;
+  linkStyle 5,6,7,8,9,10,11 stroke:#E06B4A,stroke-width:2px,stroke-dasharray:4 3;
 ```
 
 Solid green edges are the network/ingress hops; dashed coral edges carry telemetry. Everything below zooms into one leg of this picture.
@@ -192,10 +195,10 @@ flowchart LR
 
 ## OTLP dual-write
 
-Orchestration apps emit OpenTelemetry to Cribl Edge's OTLP HTTP source — never to a backend directly. Edge fans out: traces to Langfuse (live), everything to Splunk (**planned** — the leg is wired but not yet enabled).
+Orchestration apps emit OpenTelemetry to Cribl Edge's OTLP HTTP source — never to a backend directly. Edge fans out: traces to Langfuse and [Phoenix](/observability/phoenix) (live), everything to Splunk (**planned** — the leg is wired but not yet enabled).
 
 {/* Shape: parallel convergence (fan-out). Boundary crossings: 0. */}
-{/* Ranks: ≤2. Total nodes: 4 (≤12). Aspect: ~3:1 LR. Pass. */}
+{/* Ranks: ≤2. Total nodes: 5 (≤12). Aspect: ~3:1 LR. Pass. */}
 
 ```mermaid
 %%{init: {'theme':'base','look':'handDrawn','themeVariables':{'fontFamily':'Geist','fontSize':'14px','primaryColor':'#102937','primaryTextColor':'#F4EFE6','primaryBorderColor':'#4FB3A9','lineColor':'#4FB3A9','secondaryColor':'#0B1D2A','tertiaryColor':'#1A2A38','clusterBkg':'rgba(79,179,169,0.08)','clusterBorder':'#4FB3A9'}}}%%
@@ -203,10 +206,12 @@ flowchart LR
   Apps([Orchestration apps<br/>OpenLLMetry])
   Edge([Cribl Edge<br/>OTLP HTTP])
   LF([Langfuse])
+  PX([Phoenix])
   SP[(Splunk · planned)]
 
   Apps --> Edge
   Edge -->|traces| LF
+  Edge -->|traces| PX
   Edge -.planned.-> SP
 
   classDef ai   fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
@@ -215,12 +220,13 @@ flowchart LR
 
   class Apps ai
   class Edge hop
-  class LF,SP sink
+  class LF,PX,SP sink
 
   click LF "/observability/llm-observability" "Langfuse and the OTLP path"
+  click PX "/observability/phoenix" "Arize Phoenix: evals and experiments"
 
-  linkStyle 0,1 stroke:#E06B4A,stroke-width:2px,stroke-dasharray:4 3;
-  linkStyle 2 stroke:#E6B35A,stroke-width:1.5px,stroke-dasharray:2 4;
+  linkStyle 0,1,2 stroke:#E06B4A,stroke-width:2px,stroke-dasharray:4 3;
+  linkStyle 3 stroke:#E6B35A,stroke-width:1.5px,stroke-dasharray:2 4;
 ```
 
 ## NetFlow *(gateway export gap — parked)*
@@ -383,7 +389,7 @@ The full VMID ↔ VLAN convention — how a guest's six-digit ID encodes its tie
     Every collector, what it collects, where it runs.
   </Card>
   <Card title="LLM observability" icon="microchip" href="/observability/llm-observability">
-    The OTLP → Langfuse + Splunk dual-write in depth.
+    The OTLP → Langfuse + Phoenix + Splunk fan-out in depth.
   </Card>
   <Card title="Data pipelines" icon="diagram-project" href="/architecture/data-pipelines">
     The original log/NetFlow architecture page.

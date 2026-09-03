@@ -1,6 +1,6 @@
 ---
 title: "LLM observability"
-description: "Every LLM call from the orchestration stack emits OpenTelemetry, routes through Cribl, and lands in both Langfuse (trace UX) and Splunk (archival + SIEM)."
+description: "Every LLM call from the orchestration stack emits OpenTelemetry, routes through Cribl, and lands in Langfuse (trace UX), Arize Phoenix (evals + experiments), and Splunk (archival + SIEM)."
 page_type: explanation
 ---
 
@@ -11,8 +11,8 @@ its sibling for the AI component tier: every component — including `dify`,
 `langflow`, `agent-exec`, `hermes-agent`, and `open-webui` — now emits
 OpenTelemetry for every LLM call, and so does the proxy and router tier that
 those components call through. Cribl Edge collects on the endpoint, Cribl Stream
-tags and fans out, and the spans land in both Langfuse and Splunk. There are zero
-direct-to-Splunk/Langfuse paths.
+tags and fans out, and the spans land in Langfuse, [Arize Phoenix](/observability/phoenix),
+and Splunk. There are zero direct-to-backend paths.
 
 ## Emitting traces — OpenLLMetry + OTEL GenAI
 
@@ -35,18 +35,20 @@ OpenTelemetry sources**, one per signal type on its own port, so it can route by
 type without parsing payloads. Edge relays to Cribl Stream, which tags each span
 with its producer and forks it in parallel:
 
-{/* Shape: fan-out. Apps -> Cribl -> two sinks. */}
+{/* Shape: fan-out. Apps -> Cribl -> three sinks. */}
 
 ```mermaid
 %%{init: {'theme':'base','look':'handDrawn','themeVariables':{'fontFamily':'Geist','fontSize':'14px','primaryColor':'#102937','primaryTextColor':'#F4EFE6','primaryBorderColor':'#4FB3A9','lineColor':'#4FB3A9','secondaryColor':'#0B1D2A','tertiaryColor':'#1A2A38','clusterBkg':'rgba(79,179,169,0.08)','clusterBorder':'#4FB3A9'}}}%%
 flowchart LR
   Apps([Orchestration stack<br/>+ proxy tier])
   Cribl([Cribl<br/>Edge collects · Stream routes])
-  LF([Langfuse<br/>trace · cost · eval])
+  LF([Langfuse<br/>trace · cost])
+  PX([Phoenix<br/>evals · experiments])
   SP[(Splunk<br/>archival · SIEM)]
 
   Apps -->|OTLP per type| Cribl
   Cribl -->|traces| LF
+  Cribl -->|traces| PX
   Cribl -->|all signals| SP
 
   classDef app  fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
@@ -55,21 +57,26 @@ flowchart LR
 
   class Apps app
   class Cribl hub
-  class LF,SP sink
+  class LF,PX,SP sink
+
+  click PX "/observability/phoenix" "Arize Phoenix: evals and experiments"
 
   linkStyle 0 stroke:#E06B4A,stroke-width:2px,stroke-dasharray:4 3;
-  linkStyle 1,2 stroke:#4FB3A9,stroke-width:2px;
+  linkStyle 1,2,3 stroke:#4FB3A9,stroke-width:2px;
 ```
 
 - **Langfuse** gets the traces. It is the LLM-native view: trace waterfalls per
-  request, token cost, prompt and completion inspection, plus datasets, evals,
-  and prompt versioning.
+  request, token cost, prompt and completion inspection, plus prompt versioning.
+  It is the trace-of-record.
+- **Phoenix** gets the same traces on its own pipeline leg. It is where a trace
+  becomes a test case: datasets, experiments, LLM-as-judge evals, and a
+  playground that replays a captured call. See [Arize Phoenix](/observability/phoenix).
 - **Splunk** gets everything, for archival and correlation with the rest of the
   homelab's telemetry — the same indexer the AI-coding pipeline already feeds.
 
 Apps never talk to a trace store directly, and they never reach across into the
 monitoring tier — they emit to the collector, and the collector decides where it
-goes. One ingest point, two sinks, no second collector to run.
+goes. One ingest point, three sinks, no second collector to run.
 
 ## Reaching the pipeline: subdomains, TLS, and who gets gated
 
@@ -125,8 +132,10 @@ figures as "what a vendor invoiced," and never as "what this workload consumed."
 | Footprint | Web + worker + Postgres + ClickHouse + Redis + object storage |
 
 [Laminar](https://laminar.sh/) (Apache-2.0) is the runner-up — lighter, tilted
-toward long-running agent debugging. Arize Phoenix is capable but ships under the
-Elastic License, which gates self-host use.
+toward long-running agent debugging. Arize Phoenix ships under the Elastic
+License 2.0, which only forbids reselling it as a managed service; it runs here
+as the [evals and experiments](/observability/phoenix) peer rather than as the
+trace-of-record.
 
 <Note>
 Langfuse keeps its trace-of-record (relational + analytical) on durable local
@@ -145,7 +154,7 @@ standard** — never by forcing a shared backend across unrelated stacks.
     The AI-coding-tool side of the same Cribl → Splunk spine.
   </Card>
   <Card title="ansible-proxmox-ai" icon="screwdriver-wrench" href="/infrastructure/repos/ansible-proxmox-ai">
-    Deploys Langfuse. The Cribl OTEL sources it feeds come from ansible-proxmox-apps.
+    Deploys Langfuse and Phoenix. The Cribl OTEL sources they feed come from ansible-proxmox-apps.
   </Card>
   <Card title="Local LLM" icon="microchip" href="/local-llm/overview">
     The models being traced.
