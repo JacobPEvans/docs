@@ -313,6 +313,7 @@
               "local-llm/models-and-quantization",
               "local-llm/choosing-a-model",
               "local-llm/backends",
+              "local-llm/speculative-decoding",
               "local-llm/verifying-the-instrument",
               "local-llm/distributed",
               "local-llm/homelab-gpu"

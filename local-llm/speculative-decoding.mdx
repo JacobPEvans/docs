@@ -1,0 +1,152 @@
+---
+title: "Speculative decoding and MTP"
+description: "Multi-token prediction on Apple Silicon: why decode is bandwidth-bound, what a trained draft head changes, and why the concurrency setting is a coupling rather than a cap."
+page_type: explanation
+---
+
+> Decode reads the whole weight file to produce one token. Speculative decoding
+> is the one trick that gets you more than one token per read.
+
+## Why decode is slow, and the only two ways out
+
+Generating a token means streaming every active weight through the GPU. So
+single-stream decode is **memory-bandwidth bound**, not compute bound, and the
+ceiling is close to:
+
+```
+tokens/sec  ≈  memory bandwidth  ÷  bytes read per token
+```
+
+That leaves exactly two levers:
+
+| Lever | What it does | Cost |
+| --- | --- | --- |
+| Read fewer bytes per token | smaller quant | quality, eventually |
+| Get more tokens per read | speculative decoding | acceptance-rate risk |
+
+Quantization is the familiar one and hits diminishing returns fast. The second
+is where multi-token prediction lives.
+
+## What MTP is, and how it differs from a drafter
+
+Ordinary speculative decoding needs *two* models: a small draft model proposes
+tokens, the big target model verifies them in a single batched pass. Tokens the
+target agrees with are kept; the first disagreement discards the rest. You win
+when drafts are accepted often enough to beat the cost of proposing them.
+
+The weak point is the pairing. A separate small model was trained on different
+data with a different tokenizer distribution, so its guesses diverge from the
+target's and acceptance falls.
+
+**MTP removes the pairing problem.** Qwen 3.8 was trained with a multi-token
+prediction head — a small module trained *alongside* the model, on the same
+data, to predict the next several positions. The draft comes from the target's
+own learned distribution, so acceptance is structurally higher.
+
+On MLX, that head ships as a **separate Hub artifact** in the standalone drafter
+format the server expects, loaded as the draft model beside the target:
+
+- `lukaskremla/Qwen3.8-27B-MTP-6bit-MLX` — the extracted MTP tensors
+- `mlx-community/Qwen3.8-27B-MTP-{4bit,8bit,mxfp4,bf16}` — MTP-bearing targets
+
+<Note>
+  The drafter is quantized **independently of the target**. A 6-bit drafter
+  works against 2-, 3-, 4-, 5-, 6- and 8-bit targets. So adopting MTP does not
+  mean re-downloading your weights — the target you already serve stays put and
+  you add the drafter beside it.
+</Note>
+
+This independence matters more than it looks. Quantizing a draft head as hard
+as the body is a classic way to lose the speedup without noticing: the body
+still answers correctly, the drafts just stop being accepted, and the win
+quietly evaporates. Keeping the drafter at higher precision than the target is
+cheap — it is a small fraction of the weights — and protects acceptance.
+
+## Draft depth is the tunable
+
+Depth (how many tokens the head proposes per step) is the knob worth sweeping.
+Deeper drafts win more per accepted run and waste more per rejection, so the
+best value depends on how predictable your text is:
+
+- **Code** accepts deeper drafts. Syntax is constrained, so long runs survive.
+- **Prose** accepts shallower ones. More branch points, earlier rejection.
+
+Sweep it per workload rather than adopting a number from someone else's report.
+Acceptance depends on the model, the quant pairing, and the text.
+
+## Concurrency is a coupling, not a cap
+
+The most common misreading. In the Nix serving stack two values must be
+**equal**:
+
+- the worker's batch width (`maxNumSeqs` on the MTP profile), and
+- the proxy-side admission gate (`modelConcurrencyLimits`, else `proxy.concurrencyLimit`).
+
+Both accept 1–4. Nothing forces MTP to concurrency 1 — a matched pair at 2, 3
+or 4 is equally valid.
+
+The equality is enforced because the split is what actually broke: a proxy
+admitting 4 requests while the server served 1 turned the excess into `429`s.
+The rule is that both move together, not that either is pinned.
+
+<Warning>
+  Because `proxy.concurrencyLimit` defaults to `1`, an MTP profile at
+  `maxNumSeqs = 1` looks like proof that MTP must be serialized. It isn't. Read
+  the assertion as "these two must agree", and raise both together when you want
+  concurrency.
+</Warning>
+
+## Don't infer configuration from a throughput ratio
+
+A tempting shortcut: measure with the feature off, measure with it on, divide,
+and read the draft depth off the multiplier.
+
+It doesn't work at this precision. On one estate's own hardware, the same model
+serving **byte-identical output** measured anywhere from **17.4 to 27.3 tok/s**
+across runs. A ratio built from two single runs sits well inside that spread, so
+it cannot identify a parameter — the noise is larger than the effect being
+attributed.
+
+Two runs and a divide is not a measurement. Before recording any number:
+
+1. Prove which weights the process actually loaded — see
+   [Verifying the instrument](/local-llm/verifying-the-instrument).
+2. Repeat each configuration enough times to see the spread, and report the
+   spread, not a single figure.
+3. Fix the prompt set, and separate code from prose — they have different
+   acceptance rates and averaging them hides both.
+4. Restart the server between configurations. Most of these settings are read
+   **at startup only**, so an in-place edit measures the old config and looks
+   like a null result.
+
+Step 4 is the quiet one. A config file edited without a restart is the most
+common way an A/B test produces a confident, wrong answer.
+
+## Evaluating a change here
+
+<Steps>
+  <Step title="Confirm the option is reachable">
+    Enable the profile and evaluate the configuration. A feature can be fully
+    wired and still be unreachable if a policy assertion elsewhere forbids the
+    backend it needs.
+  </Step>
+  <Step title="Serve it on an isolated worker">
+    Never measure on the box handling live traffic. Reconcile the engine batch
+    width with the profile's allowed range first.
+  </Step>
+  <Step title="Prove the weights, then sweep">
+    Read the loaded model off the worker's own process command line, then sweep
+    draft depth across the range, prose and code separately.
+  </Step>
+  <Step title="Decide on the spread">
+    Adopt only if the win clears the run-to-run noise floor by a margin you'd
+    defend. Otherwise record what you measured and leave the default.
+  </Step>
+</Steps>
+
+## Related
+
+- [Verifying the instrument](/local-llm/verifying-the-instrument) — proving which weights a server actually loaded
+- [Models and quantization](/local-llm/models-and-quantization) — the bit-depth axis
+- [Prompt cache and concurrency](/local-llm/prompt-cache-and-concurrency) — the admission gate this coupling touches
+- [Backends and tool calling](/local-llm/backends) — why tok/s is the wrong headline metric

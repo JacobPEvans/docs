@@ -180,6 +180,39 @@ Two habits cover most of it: **require three independent tools to agree before
 acting on a negative signal**, and prove a check *can* fail before you trust
 what it reports.
 
+## A third thing that verifies nothing: a ratio of two runs
+
+The same reasoning applies to inferring a *setting* from a measurement, which
+looks more rigorous than it is.
+
+The pattern: benchmark with a feature off, benchmark with it on, divide, and
+read a configuration value off the multiplier. "It went 15.9 → 28.0, that's
+1.76x, so the draft depth must be 2."
+
+The arithmetic is fine. The premise isn't. On this estate's own hardware, one
+model serving **byte-identical output** measured **17.4–27.3 tok/s** across
+runs — a spread wide enough to swallow the entire effect being attributed. A
+ratio built from two single runs is a ratio of two samples from overlapping
+distributions, so it identifies nothing, and the confident decimal places make
+that harder to notice, not easier.
+
+This is why the catalog entry for that model records **no tok/s figure at all**.
+A single-run throughput number for it would be noise wearing a unit.
+
+Three consequences:
+
+- **Report spreads, not points.** One number per configuration is a claim you
+  cannot support; repeat until you can see the variance.
+- **Never infer a parameter from a ratio.** Read the setting from the config, or
+  from the process command line. Both are free and both are exact.
+- **Restart between arms.** Most serving options are read at startup only, so an
+  edited config without a restart benchmarks the *old* setting — and returns a
+  clean null result that looks like evidence.
+
+The general failure is the same as everywhere else on this page: a procedure
+that produces an answer of the right *shape* is mistaken for one that produces a
+correct answer.
+
 ## Related
 
 <CardGroup cols={2}>
@@ -194,5 +227,8 @@ what it reports.
   </Card>
   <Card title="Distributed & multi-Mac" icon="network-wired" href="/local-llm/distributed">
     Silent-success shell bugs, and debt that a retry only deepens.
+  </Card>
+  <Card title="Speculative decoding" icon="forward-fast" href="/local-llm/speculative-decoding">
+    The feature whose speedup a two-run ratio most often misreports.
   </Card>
 </CardGroup>
