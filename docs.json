@@ -178,6 +178,7 @@
             "pages": [
               "observability/overview",
               "observability/llm-observability",
+              "observability/phoenix",
               "observability/pipeline-flows",
               "observability/splunk-frozen-restore",
               "observability/splunk-silent-failure-modes",
