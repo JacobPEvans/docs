@@ -1,6 +1,6 @@
 ---
 title: "Pipeline flows"
-description: "The monitoring pipeline as diagrams: syslog families, AI-CLI shipping, the local LLM stack, OTLP dual-write, NetFlow, and the per-index HEC fan-in — one zoom per concern."
+description: "The monitoring pipeline as diagrams: syslog families, AI-CLI shipping, the local LLM stack, OTLP fan-out, NetFlow, and the per-index HEC fan-in — one zoom per concern."
 page_type: explanation
 ---
 
@@ -10,7 +10,7 @@ Every log and metric in this homelab converges on the same spine: sources reach 
 
 ## Monitoring overview
 
-Five source groups, two ingress load balancers (HAProxy for TCP syslog, nginx for UDP), one Cribl Edge/Stream spine, three sinks: Splunk (per-index HEC), Langfuse and Phoenix (OTLP traces).
+Five source groups, two ingress load balancers (HAProxy for TCP syslog, nginx for UDP), one Cribl Edge/Stream spine, three sinks. Splunk takes everything over per-index HEC; Langfuse and Phoenix each take the OTLP traces.
 
 {/* Shape: parallel convergence. Boundary crossings: 0 (no subgraphs). */}
 {/* Ranks: 5 sources max. Total nodes: 12 (≤12). Aspect: ~2:1 LR. Pass. */}
@@ -193,7 +193,7 @@ flowchart LR
   linkStyle 4,5,6,7 stroke:#E06B4A,stroke-width:2px,stroke-dasharray:4 3;
 ```
 
-## OTLP dual-write
+## OTLP fan-out
 
 Orchestration apps emit OpenTelemetry to Cribl Edge's OTLP HTTP source — never to a backend directly. Edge fans out: traces to Langfuse and [Phoenix](/observability/phoenix) (live), everything to Splunk (**planned** — the leg is wired but not yet enabled).
 

@@ -36,22 +36,24 @@ open server underneath it, and it self-hosts as one container plus Postgres.
 | --- | --- |
 | License | [Elastic License 2.0](https://www.elastic.co/licensing/elastic-license) |
 | What ELv2 forbids | Offering Phoenix to third parties as a managed service; circumventing license-key code; stripping notices |
-| What it allows | Unlimited internal use, modification, and redistribution |
+| What it allows here | Internal use and modification, with no seat, trace, or feature limit. For anything beyond that, read the license text |
 | License key | None. Nothing in the server is feature-gated |
 | Ingestion | Native OTLP over HTTP and gRPC, OpenInference and OTel GenAI attributes as emitted |
 | Auth | Local accounts, API keys, generic OIDC (Authelia here) |
 | Metrics | Prometheus `/metrics`, scraped by the observability node |
 | Footprint | `arizephoenix/phoenix` + Postgres |
 
-For a homelab, ELv2 costs nothing. The only clause that could bite is the
-managed-service one, and it only applies if you sell access to your instance.
+For a homelab, ELv2 costs nothing. The clause to keep in mind is the
+managed-service one, which applies if you offer your instance to other people.
+This page is a summary, not legal advice.
 
 <Note>
 Why not Helicone? It is Apache 2.0 and unlimited too, but it is proxy-based: it
 only sees traffic that passes through its own gateway or SDK, and it has no OTLP
 ingest. Cribl cannot fan out to it, so it would need every producer re-pointed
-at a second front door. Its standalone gateway also stopped receiving code in
-mid-2025. Phoenix fits the existing pipeline; Helicone would replace part of it.
+at a second front door. Its standalone gateway repository had no feature commits
+after July 2025 and was relicensed to GPL-3 that November (checked September
+2026). Phoenix fits the existing pipeline; Helicone would replace part of it.
 </Note>
 
 ## Where it sits
@@ -72,12 +74,12 @@ flowchart LR
   Stream -->|otel_traces_phoenix| PX
   Stream -->|all signals| SP
 
-  classDef app  fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
-  classDef hub  fill:#102937,stroke:#4FB3A9,stroke-width:2px,color:#F4EFE6;
-  classDef sink fill:#102937,stroke:#F4EFE6,stroke-width:1.5px,color:#F4EFE6;
+  classDef ai   fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
+  classDef hop  fill:#102937,stroke:#4FB3A9,stroke-width:2px,color:#F4EFE6;
+  classDef sink fill:#102937,stroke:#F4EFE6,stroke-width:2px,color:#F4EFE6;
 
-  class Apps app
-  class Stream hub
+  class Apps ai
+  class Stream hop
   class LF,PX,SP sink
 
   click LF "/observability/llm-observability" "Langfuse and the OTLP path"

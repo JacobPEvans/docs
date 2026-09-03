@@ -51,12 +51,12 @@ flowchart LR
   Cribl -->|traces| PX
   Cribl -->|all signals| SP
 
-  classDef app  fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
-  classDef hub  fill:#102937,stroke:#4FB3A9,stroke-width:2px,color:#F4EFE6;
-  classDef sink fill:#102937,stroke:#F4EFE6,stroke-width:1.5px,color:#F4EFE6;
+  classDef ai   fill:#102937,stroke:#E06B4A,stroke-width:2px,color:#F4EFE6;
+  classDef hop  fill:#102937,stroke:#4FB3A9,stroke-width:2px,color:#F4EFE6;
+  classDef sink fill:#102937,stroke:#F4EFE6,stroke-width:2px,color:#F4EFE6;
 
-  class Apps app
-  class Cribl hub
+  class Apps ai
+  class Cribl hop
   class LF,PX,SP sink
 
   click PX "/observability/phoenix" "Arize Phoenix: evals and experiments"
