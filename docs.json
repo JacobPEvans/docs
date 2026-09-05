@@ -286,6 +286,7 @@
               "autonomous-agents/runtime",
               "autonomous-agents/herdr",
               "autonomous-agents/github-access",
+              "autonomous-agents/harness-trust-tiers",
               "autonomous-agents/task-management",
               "autonomous-agents/incident-management",
               "autonomous-agents/network-source-of-truth",
@@ -382,6 +383,7 @@
                 "group": "Repository standards",
                 "pages": [
                   "conventions/readme-conventions",
+                  "conventions/generated-projection",
                   "conventions/org-gitignore",
                   "conventions/no-scripts"
                 ]

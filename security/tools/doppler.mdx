@@ -1,34 +1,37 @@
 ---
 title: "Doppler"
-description: "The T3 strict cloud tier — cloud-shared keys-to-the-kingdom under human approval, and the holder of secret-zero that bootstraps the T2 runtime manager."
+description: "The T3 bootstrap cloud tier — secret-zero for the T2 runtime manager, plus the few values an external service consumes directly."
 page_type: reference
 ---
 
-> Doppler holds the values that must be shared across the cloud — and secret-zero.
+> Doppler holds secret-zero, and nothing else that another tier can hold instead.
 
 ## Its job in the four-tier model
 
-Doppler is **T3**, the strict cloud tier of the [four-tier secrets model](/security/comparison). Its role has narrowed to two things:
+Doppler is **T3**, the bootstrap cloud tier of the [four-tier secrets model](/security/comparison). Its role has narrowed to one job with a small exception attached:
 
-- **Cloud-shared keys-to-the-kingdom.** Secrets that genuinely need a hosted, cross-environment source of truth (GitHub Actions distribution, CI-shared provider keys). These are the rare high-blast-radius values — an AI agent reaches them only under **explicit, per-use human approval**, never as part of a routine flow.
-- **Secret-zero for T2.** Doppler holds the material that bootstraps the [OpenBao runtime manager](/security/tools/openbao): its static seal key (for auto-unseal) and the first AppRole `secret_id` an agent presents to authenticate. This is why T3 is kept small and tightly scoped.
+- **Secret-zero for T2.** Doppler holds the material that bootstraps the [OpenBao runtime manager](/security/tools/openbao): its static seal key (for auto-unseal), the AppRole `role_id`/`secret_id` pairs an agent presents to authenticate, and the GitHub App key material the token engine exchanges. This is why T3 is kept small and tightly scoped.
+- **Values an external service consumes directly.** A hosted service that reads a credential on its own — a remote CI runner, a vendor integration — cannot go through T2 to get it. That explicit, listed set stays here. Nothing joins it by default.
 
-Everything an always-on machine consumes routinely resides in T2, where credentials are self-hosted, short-lived, and readable with zero interactive prompts. Doppler serves as the small, human-gated cloud tier plus the bootstrap root.
+Everything else lives in T2, where credentials are self-hosted, short-lived, and readable with zero interactive prompts, or is minted on demand by an engine and never stored at all.
 
 ## What goes in Doppler
 
-- AI provider keys: `AI_TOKEN`, `COPILOT_GITHUB_TOKEN`, `HF_TOKEN`, plus provider-specific keys when a tool cannot use the shared `AI_TOKEN` convention.
-- GitHub App credentials: `GH_APP_CLAUDE_BOT_*`, the SSH signing key for Actions-signed commits.
-- Slack webhooks (broadcast and per-channel).
-- Cloud/SaaS licensing that genuinely needs a hosted source of truth (e.g. the RunsOn license). Self-hosted app-service credentials — database passwords, Qdrant, and the like — live in OpenBao (T2), **not** here.
+- Secret-zero: the runtime manager's address, its static seal key, and the bounded AppRole pairs that let a consumer authenticate.
+- The App key material and installation identifiers the GitHub token engine exchanges for short-lived tokens.
+- The listed set of credentials an external service reads directly — hosted CI licensing and vendor-integration keys, kept in their own project.
 
 ## What does not go in Doppler
 
+- Anything a consumer can read from the runtime manager instead. Self-hosted app-service credentials — database passwords, vector-store keys, and the like — live in OpenBao (T2).
+- Anything an engine can mint: GitHub tokens, AWS sessions, SSH certificates. They are issued per call and never stored (see [GitHub access](/autonomous-agents/github-access)).
 - SSH keys for git auth (lives in Bitwarden + ssh-agent).
 - Recovery codes, account passwords, age-key escrow (Bitwarden).
 - Anything an AI tool must never read (Bitwarden vault).
-- Service API keys that only the macOS host uses (Keychain — see [macos-keychain](/security/tools/macos-keychain)).
-- GitHub tokens — they are minted on demand and never stored (see [GitHub access](/autonomous-agents/github-access)).
+
+A value that lands here by habit rather than by one of the two reasons above is
+drift. It is migrated out, and the migration counts as finished only when a live
+consumer has been proven against the central store and this copy is deleted.
 
 ## Project / config layout
 
@@ -38,7 +41,7 @@ Three Doppler projects, three delivery modes — each lands in a different consu
 | --- | --- | --- |
 | `secrets-sync` | Auto-sync → GitHub Actions secrets on the `secrets-sync` repo | [`secrets-sync`](/security/secrets-sync) workflow fans out (Tier 1) |
 | `infra-project/prd` | Runtime fetch via `dopplerhq/secrets-fetch-action` | Infra CI jobs (Tier 2 — values never sit in GitHub) |
-| Locally selected AI project/config | `doppler run --` wrapper at subprocess launch | Local dev + the [`doppler-mcp`](/security/local-ai-isolation) bridge |
+| Locally selected AI project/config | `doppler run --` wrapper at subprocess launch, carrying secret-zero only | Local dev and agent sessions |
 
 ## Runtime fetch via GitHub Actions
 
@@ -61,8 +64,8 @@ copy an IaC credential from Doppler into a Terrakube workspace variable.
 
 ## Anti-patterns and best practices
 
-- Do not export `DOPPLER_TOKEN` in `~/.zshrc`. Use the `doppler-mcp` wrapper or `doppler login` interactive auth. Tokens persisted in the shell env are reachable by every later command.
-- Do not store the same value in both Doppler and the Keychain. Pick one source of truth per secret. The Keychain is for keys that only the macOS host uses; Doppler is for tokens that CI also needs.
+- Do not export `DOPPLER_TOKEN` in a shell profile. Use `doppler login` interactive auth or a per-user service token configured once. A token persisted in the shell environment is reachable by every later command.
+- Do not store the same value in two places. One source of truth per secret, and for anything but secret-zero that source is the runtime manager.
 - Rotate the service tokens at 90 days. The rotation runbook lives in [secrets-sync](/security/secrets-sync#rotation-cadence-best-practice).
 - Audit log: enable Doppler's per-project audit log; review on every key rotation.
 

@@ -14,13 +14,13 @@ Seven tools show up across this section, and on their own they read like a grab-
 | --- | --- | --- | --- |
 | **T1 — Repo-local** | Encrypted-at-rest config that travels *with* the code it configures | SOPS + age | AI and machines, via a path-gated local age key |
 | **T2 — Runtime manager** | The self-hosted source of truth for live machine credentials, and the **primary AI/machine interface** | OpenBao | AI and machines, via AppRole / signed SSH cert — no human in the loop |
-| **T3 — Strict cloud** | Cloud-hosted keys-to-the-kingdom; also holds *secret-zero* that bootstraps T2 | Doppler | Machines for a narrow set; AI only under **explicit, per-use human approval** |
+| **T3 — Bootstrap cloud** | *Secret-zero* that bootstraps T2, plus the few values an external service consumes directly | Doppler | Machines for that narrow set; AI only under **explicit, per-use human approval** |
 | **T4 — Never-AI human** | Break-glass and crown jewels — recovery shares, master keys, account passwords | Bitwarden | Humans only, at a keyboard, with a second factor |
 
 Two properties make the model hold:
 
 - **The primary path is T2.** An always-on agent authenticates to the self-hosted runtime manager as itself (AppRole) and gets scoped, expiring credentials with zero interactive prompts. That is the default read path for automation — not the cloud tier, not the keychain.
-- **Secret-zero lives one tier up.** T2 cannot bootstrap itself from nothing: its static seal key and the AppRole `secret_id` that agents use to authenticate are held in T3. T3 is therefore small, tightly scoped, and only AI-reachable under human approval. T4 holds the human-only recovery material that can rebuild everything if both T2 and T3 are lost.
+- **Secret-zero lives one tier up.** T2 cannot bootstrap itself from nothing: its static seal key and the AppRole `secret_id` that agents use to authenticate are held in T3. That, plus the handful of values an external service reads on its own, is the whole of T3 — everything else lives in T2 or is minted by an engine on demand. T3 is therefore small, tightly scoped, and only AI-reachable under human approval. T4 holds the human-only recovery material that can rebuild everything if both T2 and T3 are lost.
 
 ## The tool matrix
 
@@ -30,13 +30,13 @@ Every tool this section documents, scored on the axes that decide its tier. "AI 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **SOPS + age** | Yes — files in git | Yes — local age key | age keypair | Per file / path | Manual re-encrypt | **T1** | Free (OSS) |
 | **OpenBao** | Yes — homelab service | LAN-only (needs the service) | AppRole, SSH-CA cert, TLS cert | Fine — per-path policy × per-role | Native leases + scheduled rotation | **T2 — primary** | Free (MPL fork of Vault 1.14) |
-| **Doppler** | No — SaaS | No | Service token | Project / config / env | Scheduled token rotation | **T3 — human-approved** | Free tier + paid seats |
+| **Doppler** | No — SaaS | No | Service token | Project / config / env | Scheduled token rotation | **T3 — secret-zero + external consumers, human-approved** | Free tier + paid seats |
 | **Bitwarden** | No — SaaS (Vaultwarden self-host on roadmap) | No — needs unlock | None — human unlock only | Collections | Manual | **T4 — never-AI** | Free / paid |
-| **macOS Keychain** | Yes — local, OS-backed | Yes | None — GUI / login unlock | Two DBs by unlock posture | Manual | Interactive convenience; automated reads retire to T2 | Free (OS) |
+| **macOS Keychain** | Yes — local, OS-backed | Yes | None — GUI / login unlock | Human-only, locked | Manual | Human break-glass only; the automation tier is retired to T2 | Free (OS) |
 | **aws-vault** | Yes — local, keychain-backed | Yes — cached STS | MFA session | Per AWS profile | STS auto-expiry | Interactive convenience; automated STS retires to T2 | Free (OSS) |
 | **BWS** | No — SaaS (Bitwarden Secrets Manager) | No | Access token | Per project | Manual | Programmatic AI tokens; folds into T2 / T3 | Free / paid |
 
-**aws-vault** and the automated use of **macOS Keychain** are interactive-convenience tools whose *machine* paths move to T2's AWS secrets engine and token-file reads — the human at a laptop keeps them, headless agents do not.
+**aws-vault** and the automated use of **macOS Keychain** are retired from the machine path. T2's AWS secrets engine and token-file reads replaced them; a human at a laptop may still keep a local session, headless agents have none.
 
 ## How the tiers bootstrap — root of trust to runtime creds
 

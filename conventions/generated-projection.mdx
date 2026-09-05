@@ -1,0 +1,69 @@
+---
+title: "Generated projection"
+description: "This site is generated output, not a knowledge base — authoring happens in a private source, and every page arrives through a publisher-only pull request that merges on green."
+page_type: explanation
+---
+
+> Nothing is authored here. Every page on this site is projected from a private source by a publisher identity, and merges when the checks pass.
+
+This repository is a publication target. The documentation it renders is
+written and reviewed somewhere else, in a private source that holds both the
+public pages and the internal ones. A build step selects the pages marked
+public, converts them to this site's renderer, regenerates the navigation, and
+opens a pull request here.
+
+## What that means in practice
+
+- **Do not edit a page in this repository.** An edit made here is overwritten by
+  the next projection. The change belongs in the private source, on the page
+  that produced it.
+- **Selection is opt-in.** A page is projected only if it carries an explicit
+  public flag. A page that says nothing stays private, so omission never leaks.
+- **One transform, and it fails loudly.** The two sites use different renderers,
+  so a single conversion step maps components and rewrites links. If a
+  source-only component survives the mapping, the job fails rather than
+  publishing a broken page.
+
+## Who may open a pull request
+
+Only the publisher identity. It holds a narrow, minted credential scoped to this
+repository alone, with permission to write content and open pull requests and
+nothing else. Branch and pull-request creation targeting the default branch is
+restricted to that identity.
+
+## How a generated pull request merges
+
+Automatically, once every required check passes. There is no separate human
+approval step, because a generated pull request has no author to review — the
+review already happened on the source page. "Ready to merge" is defined as
+every required check green, enforced by the forge rather than by an agent's
+judgement. The required set covers content validation and a secret scan.
+
+A human still maintains this repository's control plane: workflows, this policy,
+and repository settings. Those are hand-edited here and reviewed normally. The
+projected content is not.
+
+## Paired pages, until the projection is live
+
+While the pipeline is being built, some pages here still have a hand-maintained
+counterpart in the private source. A change to such a page names the counterpart
+in its pull request body and links the paired pull request. A page with no
+counterpart says so. The pairing list lives with the decision record in the
+private source, not here.
+
+## See also
+
+<CardGroup cols={2}>
+  <Card title="No scripts" icon="file-code" href="/conventions/no-scripts">
+    Why the one transform is a real script file rather than inline workflow logic.
+  </Card>
+  <Card title="Pull request conventions" icon="code-pull-request" href="/conventions/pr-conventions">
+    What a hand-authored pull request against the control plane still has to do.
+  </Card>
+  <Card title="Documentation standards" icon="book" href="/conventions/documentation-standards">
+    The authoring standard the source pages are written to.
+  </Card>
+  <Card title="Harness trust tiers" icon="robot" href="/autonomous-agents/harness-trust-tiers">
+    Which identities may write to a repository at all.
+  </Card>
+</CardGroup>

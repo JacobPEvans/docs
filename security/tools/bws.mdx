@@ -68,7 +68,7 @@ Every step keeps secrets in process memory, never disk. Callers should pipe the 
 
 ## Best practices
 
-- Treat the BWS access token like any other automation-tier credential: 90-day rotation, automation keychain only.
+- Treat the BWS access token like any other machine credential: 90-day rotation, held in the runtime manager, never on a keychain.
 - Use BWS only for AI-specific tokens. Long-term plan: as Doppler matures coverage of these cases, BWS shrinks.
 - Audit: enable BWS access logging in Bitwarden's web console. Review on every rotation.
 - Never echo `get_secret()` output to stdout for debugging. Use a tracer that masks values by length.

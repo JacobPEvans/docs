@@ -64,7 +64,7 @@ provider "proxmox" {
 
 Real values come from one of these stores — never the repo:
 
-- **macOS Keychain** (`ai-secrets`, `automation`, `elevate-access` keychains) — for AI / Claude projects and local CLI use, never in files or env vars
+- **macOS Keychain** (the human-only database) — for break-glass material a human reads at a keyboard, never in files or env vars
 - **Doppler** — `doppler run --name-transformer tf-var` for infrastructure
 - **SOPS + age** — encrypted secrets at rest in git
 - **Environment variables** — CI/CD secrets or local `.env` files (never committed)
