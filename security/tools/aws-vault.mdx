@@ -1,15 +1,17 @@
 ---
 title: "aws-vault"
-description: "A legacy local AWS session tool. Active dryvist OpenTofu workspaces use Terrakube and OpenBao; local/manual AWS access is also brokered through OpenBao now."
+description: "A retired local AWS session tool. No static AWS key backs it here — OpenTofu workspaces and local access alike are brokered through the runtime manager."
 page_type: reference
 ---
 
 > Active IaC workspaces do not use aws-vault. Neither does local/manual AWS access anymore.
 
 `aws-vault` can store long-lived AWS access keys in an operating-system
-keychain and mint bounded subprocess sessions. It is not part of the dryvist
-AWS access path, automated or manual. Do not add aws-vault profiles, wrapper
-commands, or long-lived operator keys to an active IaC repo or a laptop.
+keychain and mint bounded subprocess sessions. That is the pattern this estate
+retired: there is no static AWS access key on a workstation for it to hold, and
+no keychain-backed profile in the AWS access path, automated or manual. Do not
+add aws-vault profiles, wrapper commands, or long-lived operator keys to an
+active IaC repo or a laptop.
 
 ## Terrakube workspaces
 
@@ -37,13 +39,14 @@ too, on two layers:
   billing tampering — it is not `AdministratorAccess`.
 
 A local AWS CLI profile (`credential_process`) resolves each identity on
-demand: it reads the profile's OpenBao AppRole — whose secret-zero the runtime
-secret injector supplies from the human-approved Doppler strict tier — and mints
-a short-lived STS session per call. The injector delivers the AppRole promptlessly,
-and nothing is ever written to `~/.aws/credentials`.
+demand: it reads the profile's OpenBao AppRole — whose secret-zero the
+run-wrapper supplies from the human-approved bootstrap tier — and mints a
+short-lived STS session per call. The run-wrapper delivers the AppRole
+promptlessly and carries nothing else, and no credential is ever written to the
+AWS credentials file.
 
 ## See also
 
 - [OpenBao](/security/tools/openbao) — the AWS secrets engine and RBAC.
-- [macOS Keychain](/security/tools/macos-keychain) — the two-database AI-readable / human-only boundary for local tokens.
+- [macOS Keychain](/security/tools/macos-keychain) — why no automated path reads a keychain any more.
 - [Consuming AWS workspace setup](/infrastructure/tofu-aws/consuming-repo) — the Terrakube-workspace path.

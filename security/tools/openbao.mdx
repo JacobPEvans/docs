@@ -115,18 +115,18 @@ consumer's network segment.
 
 ## Secret-zero — what bootstraps the bootstrapper
 
-OpenBao cannot start sealed-and-empty on its own. Two pieces of *secret-zero* live one tier up, in the [Doppler strict cloud tier](/security/tools/doppler) (T3): the **static seal key** that auto-unseals the service, and the **AppRole `secret_id`** that agents present to authenticate. T3 is small and only AI-reachable under explicit human approval precisely because it holds these. The human-only **recovery shares** live in the [Bitwarden vault](/security/tools/bitwarden) (T4) as the break-glass path if both T2 and T3 are lost.
+OpenBao cannot start sealed-and-empty on its own. Its *secret-zero* lives one tier up, in the [Doppler bootstrap tier](/security/tools/doppler) (T3): the **static seal key** that auto-unseals the service, and the **AppRole `role_id`/`secret_id`** pairs that consumers present to authenticate. That material, plus the few values an external service reads directly, is all T3 holds — everything else lives here or is minted by an engine on demand. The human-only **recovery shares** live in the [Bitwarden vault](/security/tools/bitwarden) (T4) as the break-glass path if both T2 and T3 are lost.
 
-On an **always-on Mac agent host**, the **runtime secret injector** ([Doppler](/security/tools/doppler)) publishes each domain's AppRole `role_id`/`secret_id` into the agent process's ambient environment via `doppler run`. The injector is **promptless**: an agent reads its AppRole as a plain environment value, never through an interactive unlock — so the "zero prompts at 3 a.m." property holds because no per-read gate sits in the path.
+On an **always-on Mac agent host**, the **run-wrapper** publishes each domain's AppRole `role_id`/`secret_id` into the agent process's environment, and publishes nothing else. It is **promptless**: an agent reads its AppRole as a plain environment value, never through an interactive unlock — so the "zero prompts at 3 a.m." property holds because no per-read gate sits in the path. Every other value the agent needs it fetches from here, with that AppRole.
 
 ### Autonomous Agent API Authentication
 
-Agents provisioned with an OpenBao AppRole `role_id` and `secret_id` (injected into the agent environment by the runtime secret injector) must exchange them for a short-lived `client_token` via the OpenBao API before reading secrets or running pipelines that require OpenBao data (such as the infrastructure inventory). In practice, an agent exchanges its AppRole `role_id`/`secret_id` for that token by calling the vault's standard AppRole login endpoint, then uses the returned token for subsequent reads.
+Agents provisioned with an OpenBao AppRole `role_id` and `secret_id` (placed in the agent environment by the run-wrapper) must exchange them for a short-lived `client_token` via the OpenBao API before reading secrets or running pipelines that require OpenBao data (such as the infrastructure inventory). In practice, an agent exchanges its AppRole `role_id`/`secret_id` for that token by calling the vault's standard AppRole login endpoint, then uses the returned token for subsequent reads.
 
 ## Boundary with the other tiers
 
 - **SOPS + age (T1):** stays the source of truth for at-rest, in-repo config. OpenBao is for runtime-resolved secrets where lease/renew/rotation matters.
-- **Doppler (T3):** holds secret-zero and the rare keys-to-the-kingdom values; OpenBao holds the day-to-day machine credentials that agents actually consume.
+- **Doppler (T3):** holds secret-zero, and the few values an external service consumes without passing through here; OpenBao holds every other machine credential.
 - **Bitwarden (T4):** human-only cold storage and OpenBao's recovery shares.
 
 The tiers compose; OpenBao is the primary machine path, not a replacement for the layers around it.
@@ -135,7 +135,7 @@ The tiers compose; OpenBao is the primary machine path, not a replacement for th
 
 ## Sealed posture, audit trail, and recovery
 
-- **Sealed at rest.** OpenBao restarts sealed. Routine restarts auto-unseal from the Doppler-held seal key; a full recovery from N-of-M shares is a [Golden law #3](/security/golden-laws#3-human-approval-gates-every-potentially-destructive-action) human-in-the-loop event.
+- **Sealed at rest.** OpenBao restarts sealed. Routine restarts auto-unseal from the seal key held in the bootstrap tier; a full recovery from N-of-M shares is a [Golden law #3](/security/golden-laws#3-human-approval-gates-every-potentially-destructive-action) human-in-the-loop event.
 - **Audit log to Splunk.** Every read, write, and policy change appears in Splunk via the standard OpenBao audit-device → file → Cribl Edge path.
 - **Raft-snapshot DR.** An on-box systemd timer snapshots the active node on a schedule (leader-gated at runtime, authenticated with the least-privilege `snapshot` AppRole), integrity-checks each snapshot, and keeps them on a ZFS/PBS-backed volume that replicates off-box; a second copy to an encrypted S3 bucket is a tracked follow-up. Recovery is: restore the snapshot onto a fresh node, auto-unseal from secret-zero, and let the leases re-issue. Rehearsed with a drill on a non-production instance ([Golden law #15](/security/golden-laws#15-backup-the-vault-itself-and-test-recovery)).
 

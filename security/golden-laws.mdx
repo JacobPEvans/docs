@@ -34,7 +34,7 @@ Not "should not." Cannot. The layered isolation (no credential at rest, scoped c
 
 No AWS API call leaves the workstation on a long-lived key. Automated and AI-agent AWS calls go through OpenBao's AWS secrets engine; the AppRole secret-zero that reaches it is delivered by the runtime secret injector from the human-approved Doppler strict tier, not a long-lived workstation key, and no per-call MFA prompt sits in the path. Any remaining manual aws-vault session still requires its MFA-derived token. No GitHub admin operation runs without a human-gated, interactive, single-use grant; there is no standing admin credential for automation to pick up. No Bitwarden vault read happens without the master password plus device-bound second factor.
 
-**How we enforce it.** The OpenBao AWS broker's own base key is seeded into OpenBao once, write-once, and rotated only by a deliberate operator action — no static AWS key sits on a workstation to gate in the first place. Any remaining `aws-vault` profile requires `mfa_serial`. The elevate-access-tier keychain is locked by default. Bitwarden TOTP is set across the vault. Touch ID for sudo is enabled in `nix-darwin/modules/darwin/security.nix`.
+**How we enforce it.** The OpenBao AWS broker's own base key is seeded into OpenBao once, write-once, and rotated only by a deliberate operator action — no static AWS key sits on a workstation to gate in the first place. Any remaining `aws-vault` profile requires `mfa_serial`. The human-only keychain is locked by default. Bitwarden TOTP is set across the vault. Every privilege escalation on the interactive human account is biometrically gated; unattended escalation belongs to the automation identity alone, scoped to one exact command.
 
 ### 5. One source of truth per secret
 

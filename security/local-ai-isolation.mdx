@@ -60,16 +60,14 @@ This is a stronger boundary than "which secret can you read." A read credential 
 
 The lease is the visibility mechanism: a write claim is recorded, exclusive, and self-expiring, so two agents cannot silently both hold write on one repository. See [GitHub access](/autonomous-agents/github-access) for the full model.
 
-## Layer 3 — the keychain split for what remains
+## Layer 3 — the keychain holds nothing an agent needs
 
-Secrets that no engine mints still live in two separate macOS keychain databases. The detail is in [macOS Keychain](/security/tools/macos-keychain); the boundary that matters here is:
-
-| Database | Holds | AI subprocess can read? |
-| --- | --- | --- |
-| automation tier | Service API keys and similar login-convenience credentials | Yes |
-| elevate-access tier | Human-only break-glass material | No — GUI unlock prompt blocks non-interactive reads |
-
-An AI subprocess cannot satisfy the unlock prompt, which is the whole point of the second database.
+There is no AI-readable keychain tier. Every automated read moved to the runtime
+manager, and what stays on the keychain is human-only break-glass material in a
+locked database. The detail is in [macOS Keychain](/security/tools/macos-keychain);
+the boundary that matters here is that an AI subprocess cannot satisfy the unlock
+prompt, and there is no unlocked database holding a credential it could use
+instead.
 
 ## Layer 4 — explicit allow / deny lists in Claude Code
 
@@ -84,9 +82,15 @@ The Claude Code permission system bakes a deny list into the build. Even if the 
 
 The allow list lets the AI inspect *metadata* — "does a keychain entry with this service name exist?" — without ever returning the value.
 
-## Layer 5 — passwordless sudo, but only for `darwin-rebuild`
+## Layer 5 — unattended convergence belongs to one identity
 
-The `nix-darwin` configuration grants passwordless `sudo` exclusively for two paths: `/run/current-system/sw/bin/darwin-rebuild` and `/nix/var/nix/profiles/system/activate`. Both are declarative — they apply Nix store paths already built. No ad-hoc shell, no read access to anything else.
+The interactive human account has no password-less escalation. Every `sudo` it
+runs is biometrically gated, convergence included. Unattended convergence runs
+instead under a dedicated automation account whose grant covers one exact
+declarative command and nothing else — it applies store paths that were already
+built, with no ad-hoc shell and no other read access. Which harnesses run under
+that account is set out in
+[harness trust tiers](/autonomous-agents/harness-trust-tiers).
 
 ## The launcher banner (verbatim)
 
@@ -115,7 +119,7 @@ No secret material is ever printed. The banner names the *kind* of context, neve
 | Obtain GitHub write across an account | ❌ | Repository parameter is pinned server-side per request |
 | Obtain an installation-wide admin credential | ❌ | Human-only interactive single-use grant |
 | Recover a GitHub token from disk | ❌ | No token is ever written to disk |
-| Read a value from `elevate-access` keychain | ❌ | GUI unlock prompt; AI cannot respond |
+| Read a value from the human-only keychain | ❌ | GUI unlock prompt; AI cannot respond |
 | Modify keychain entries | ❌ | `security add-generic-password` not in allow list |
 | Read `.env*` files | ❌ | Path glob denied |
 | Read `~/.ssh/id_*` private keys | ❌ | Path glob denied |

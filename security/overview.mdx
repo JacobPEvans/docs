@@ -16,7 +16,7 @@ Every secret lives in exactly one of four tiers, and the tier — not the tool �
 | --- | --- | --- | --- |
 | **T1 — Repo-local** | Encrypted-at-rest config that travels with the code | SOPS + age | AI and machines, via a path-gated local age key |
 | **T2 — Runtime manager** | Self-hosted source of truth for live machine credentials and Terrakube dynamic provider credentials | OpenBao | AI and machines, via scoped native auth / signed SSH cert — no human in the loop |
-| **T3 — Strict cloud** | Cloud keys-to-the-kingdom; holds *secret-zero* that bootstraps T2 | Doppler | Machines for a narrow set; AI only under explicit, per-use human approval |
+| **T3 — Bootstrap cloud** | *Secret-zero* that bootstraps T2, plus the few values an external service consumes directly | Doppler | Machines for that narrow set; AI only under explicit, per-use human approval |
 | **T4 — Never-AI human** | Break-glass and crown jewels | Bitwarden | Humans only, at a keyboard, with a second factor |
 
 The default automation path is T2: an always-on agent authenticates as itself and gets scoped, expiring credentials with zero interactive prompts. `aws-vault` and automated `macOS Keychain` reads are interactive-convenience paths whose machine side folds into T2.
@@ -25,14 +25,14 @@ The default automation path is T2: an always-on agent authenticates as itself an
 
 | AI-readable (CI + dev) | Human-only |
 | --- | --- |
-| OpenBao (T2, primary), Doppler (T3, human-approved), `automation` keychain, AWS Vault session, SOPS in-repo, BWS via bridge | Bitwarden vault (T4), `elevate-access` keychain |
+| OpenBao (T2, primary), Doppler (T3, human-approved, secret-zero only), SOPS in-repo, BWS via bridge | Bitwarden vault (T4), the human-only keychain |
 
 ## Which tool for which secret
 
 | Tool | Use it for | Deep dive |
 | --- | --- | --- |
-| **Doppler** | AI provider keys (`AI_TOKEN`, Copilot, HuggingFace, provider-specific fallbacks); GitHub Actions secrets distributed via `secrets-sync`; dryvist org-level Doppler integration | [doppler](/security/tools/doppler) |
-| **macOS Keychain** | Service API keys no engine mints; BWS access token; Claude Code OAuth credential; human-only break-glass material | [macos-keychain](/security/tools/macos-keychain) |
+| **Doppler** | Secret-zero for T2, and the values a hosted service consumes directly — the credentials pushed to GitHub Actions and the licence keys remote CI needs | [doppler](/security/tools/doppler) |
+| **macOS Keychain** | Human-only break-glass material and login convenience. No automation tier, and no credential an engine can mint | [macos-keychain](/security/tools/macos-keychain) |
 | **AWS Vault** | AWS credentials per OpenTofu root (one profile per root) | [aws-vault](/security/tools/aws-vault) |
 | **Mozilla SOPS** | Encrypted OpenTofu / Ansible vars committed to git; initial-bootstrap passwords; internal topology | [sops](/security/tools/sops) |
 | **Bitwarden vault** | SSH keys, recovery codes, age-key escrow, account passwords — AI tools never reach this | [bitwarden](/security/tools/bitwarden) |
