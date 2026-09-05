@@ -1,31 +1,18 @@
 # Contribute
 
-This site is a personal documentation portfolio, but typo fixes, broken-link reports, and small clarifications are welcome.
+This repository is the generated public projection of the private documentation
+site. Direct content contributions are not accepted here.
 
 ## How to contribute
 
-### Option 1: Edit directly on GitHub
+Documentation changes must be authored in `dryvist/docs-starlight`. The
+publisher selects the public-safe projection, converts it to Mintlify, scans
+it, and opens the public pull request. A human reviews every generated pull
+request before merge.
 
-1. Navigate to the page you want to edit.
-2. Click the pencil icon (Edit this file).
-3. Make your changes and open a pull request.
-
-### Option 2: Local development
-
-1. Fork and clone this repository.
-2. From the repo root: `nix develop` (or install Node 20 + `npm i -g mint` manually).
-3. Run `mint dev` to preview at <http://localhost:3000>.
-4. Make your changes on a feature branch.
-5. Run `mint broken-links` to validate.
-6. Commit and open a pull request.
-
-## Writing guidelines
-
-- Active voice, second person ("you")
-- One idea per sentence
-- Sentence case for headings
-- Code formatting for file names, commands, paths, and code references
-- Diagrams over prose where structure matters
+Pull requests to this repository are limited to publisher and repository
+control-plane maintenance. Do not edit pages, generated assets, or `docs.json`
+by hand.
 
 ## Content boundaries
 
@@ -39,4 +26,4 @@ add:
 - Real internal IP addresses or hostnames
 - Credentials, tokens, or other sensitive data
 
-When in doubt, ask in an issue before opening a PR.
+The publisher fails closed when a page cannot be proven public-safe.
