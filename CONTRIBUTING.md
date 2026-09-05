@@ -5,10 +5,10 @@ site. Direct content contributions are not accepted here.
 
 ## How to contribute
 
-Documentation changes must be authored in `dryvist/docs-starlight`. The
+Documentation changes must be authored in the private authoring source. The
 publisher selects the public-safe projection, converts it to Mintlify, scans
-it, and opens the public pull request. A human reviews every generated pull
-request before merge.
+it, and opens the public pull request. A generated pull request comes only
+from the publisher identity and merges once every required check passes.
 
 Pull requests to this repository are limited to publisher and repository
 control-plane maintenance. Do not edit pages, generated assets, or `docs.json`

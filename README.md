@@ -3,8 +3,8 @@
 [![CI](https://github.com/JacobPEvans/docs/actions/workflows/ci.yml/badge.svg)](https://github.com/JacobPEvans/docs/actions/workflows/ci.yml)
 
 Generated Mintlify projection for
-[docs.jacobpevans.com](https://docs.jacobpevans.com). The private
-`dryvist/docs-starlight` repository is the sole documentation authoring source.
+[docs.jacobpevans.com](https://docs.jacobpevans.com). Documentation is authored in
+a separate private source; this repository only publishes it.
 
 Built with [Mintlify](https://mintlify.com). The publisher deterministically
 converts an approved public projection from Starlight MDX, validates and scans
